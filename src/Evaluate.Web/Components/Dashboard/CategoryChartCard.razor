@@ -1,0 +1,41 @@
+@using Evaluate.Application.Dashboard
+@inject IJSRuntime JS
+
+<div class="card">
+    <div class="chart-card-header">
+        <h3 class="card-title" style="margin-bottom:0;">@Data.Title</h3>
+    </div>
+    <div class="chart-totals" style="margin-bottom:12px;">
+        <div>
+            <div class="chart-total-value">@Data.Total1Value</div>
+            <div class="chart-total-label">@Data.Total1Label</div>
+        </div>
+        <div>
+            <div class="chart-total-value">@Data.Total2Value</div>
+            <div class="chart-total-label">@Data.Total2Label</div>
+        </div>
+    </div>
+    <div class="chart-canvas-wrap">
+        <canvas id="@_canvasId"></canvas>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public CategoryChartDto Data { get; set; } = null!;
+
+    [Parameter]
+    public string ChartType { get; set; } = "area";
+
+    private readonly string _canvasId = $"cat-{Guid.NewGuid():N}";
+    private bool _rendered;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_rendered) return;
+        _rendered = true;
+        var series = Data.Series.Select(s => new { name = s.Name, values = s.Values, color = s.Color }).ToArray();
+        var function = ChartType == "bar" ? "dashboardCharts.renderBar" : "dashboardCharts.renderArea";
+        await JS.InvokeVoidAsync(function, _canvasId, Data.Categories, series, true);
+    }
+}

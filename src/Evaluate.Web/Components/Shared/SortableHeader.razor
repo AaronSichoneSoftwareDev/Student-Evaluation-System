@@ -1,0 +1,24 @@
+<th class="sortable" @onclick="() => OnSort.InvokeAsync(Column)">
+    @Label
+    <span class="sort-icons">
+        <i class="bi bi-caret-up-fill @(CurrentColumn == Column && Ascending ? "sort-active" : "")"></i>
+        <i class="bi bi-caret-down-fill @(CurrentColumn == Column && !Ascending ? "sort-active" : "")"></i>
+    </span>
+</th>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Column { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? CurrentColumn { get; set; }
+
+    [Parameter]
+    public bool Ascending { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnSort { get; set; }
+}

@@ -1,0 +1,56 @@
+@page "/"
+@using Evaluate.Application.Dashboard
+@using Evaluate.Web.Components.Dashboard
+@inject IDashboardService DashboardService
+
+<PageTitle>Dashboard - Evaluate</PageTitle>
+
+@if (_model is null)
+{
+    <p class="page-heading">Loading dashboard...</p>
+}
+else
+{
+    <div class="page-heading">
+        <h1>Dashboard</h1>
+        <p>Welcome back — here's how your students are performing.</p>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="row row-stats">
+            @foreach (var stat in _model.StatCards)
+            {
+                <StatCard Stat="stat" />
+            }
+        </div>
+
+        <div class="row row-charts">
+            <DonutChartCard Data="_model.PerformanceDonut" />
+            <CategoryChartCard Data="_model.ScoreTrend" ChartType="area" />
+            <CategoryChartCard Data="_model.AssessmentsOverview" ChartType="bar" />
+        </div>
+
+        <div class="row row-feed">
+            <InboxCard Messages="_model.Inbox" />
+            <ActivityFeedCard Items="_model.ActivityFeed" />
+            <div style="display:flex;flex-direction:column;gap:20px;">
+                <QuoteCard Quote="_model.Quote" />
+                <YearlyEvaluationsCard Data="_model.YearlyEvaluations" />
+            </div>
+        </div>
+
+        <div class="row row-tables">
+            <EvaluationsTable Rows="_model.LatestEvaluations" />
+            <SubmissionsTable Rows="_model.LatestSubmissions" />
+        </div>
+    </div>
+}
+
+@code {
+    private DashboardViewModel? _model;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _model = await DashboardService.GetDashboardAsync();
+    }
+}

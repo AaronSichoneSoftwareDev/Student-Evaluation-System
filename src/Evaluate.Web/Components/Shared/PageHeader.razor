@@ -1,0 +1,104 @@
+<div class="page-header-bar">
+    <div class="page-header-text">
+        <span class="page-header-accent"></span>
+        <div>
+            <h1 class="page-header-title">@Title</h1>
+            @if (!string.IsNullOrWhiteSpace(Subtitle))
+            {
+                <p class="page-header-subtitle">@Subtitle</p>
+            }
+        </div>
+    </div>
+
+    <div class="page-header-actions">
+        @if (ShowRefresh)
+        {
+            <div class="header-dropdown">
+                <button type="button" class="btn-star" @onclick="ToggleDropdown">
+                    <i class="bi bi-star-fill"></i>
+                    <i class="bi bi-caret-down-fill header-caret"></i>
+                </button>
+                @if (_dropdownOpen)
+                {
+                    <div class="dropdown-menu-custom">
+                        <button type="button" class="dropdown-item-custom" @onclick="HandleRefresh">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (AddOptions is { Count: > 0 })
+        {
+            <div class="header-dropdown">
+                <button type="button" class="btn-add-new" @onclick="ToggleAddMenu">
+                    <i class="bi bi-plus-lg"></i> @AddButtonLabel
+                    <i class="bi bi-caret-down-fill header-caret"></i>
+                </button>
+                @if (_addMenuOpen)
+                {
+                    <div class="dropdown-menu-custom">
+                        @foreach (var option in AddOptions)
+                        {
+                            <button type="button" class="dropdown-item-custom" @onclick="() => HandleAddOption(option)">
+                                @option.Label
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        else if (ShowAddButton)
+        {
+            <button type="button" class="btn-add-new" @onclick="() => OnAdd.InvokeAsync()">
+                <i class="bi bi-plus-lg"></i> @AddButtonLabel
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Subtitle { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool ShowRefresh { get; set; } = true;
+
+    [Parameter]
+    public bool ShowAddButton { get; set; }
+
+    [Parameter]
+    public string AddButtonLabel { get; set; } = "Add New";
+
+    [Parameter]
+    public EventCallback OnAdd { get; set; }
+
+    [Parameter]
+    public EventCallback OnRefresh { get; set; }
+
+    [Parameter]
+    public List<AddMenuItem>? AddOptions { get; set; }
+
+    private bool _dropdownOpen;
+    private bool _addMenuOpen;
+
+    private void ToggleDropdown() => _dropdownOpen = !_dropdownOpen;
+
+    private void ToggleAddMenu() => _addMenuOpen = !_addMenuOpen;
+
+    private async Task HandleRefresh()
+    {
+        _dropdownOpen = false;
+        await OnRefresh.InvokeAsync();
+    }
+
+    private async Task HandleAddOption(AddMenuItem option)
+    {
+        _addMenuOpen = false;
+        await option.OnClick.InvokeAsync();
+    }
+}

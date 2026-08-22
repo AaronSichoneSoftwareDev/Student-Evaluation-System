@@ -1,0 +1,41 @@
+@if (IsVisible)
+{
+    <div class="modal-backdrop-custom" @onclick="Close">
+        <div class="modal-panel-custom" @onclick:stopPropagation="true">
+            <div class="modal-panel-header">
+                <div>
+                    <h3>@Title</h3>
+                    @if (!string.IsNullOrWhiteSpace(Subtitle))
+                    {
+                        <p class="modal-panel-subtitle">@Subtitle</p>
+                    }
+                </div>
+                <button type="button" class="modal-close-btn" @onclick="Close" aria-label="Close">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="modal-panel-body">
+                @ChildContent
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private Task Close() => OnClose.InvokeAsync();
+}

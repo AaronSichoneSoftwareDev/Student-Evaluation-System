@@ -1,0 +1,33 @@
+@using Evaluate.Application.Dashboard
+@inject IJSRuntime JS
+
+<div class="card">
+    <h3 class="card-title">Yearly Evaluations</h3>
+    <div class="yearly-flex">
+        <div>
+            <div class="yearly-value">@Data.Total</div>
+            <div class="yearly-desc">@Data.Description</div>
+            <a href="#reports" class="yearly-link">Learn more &raquo;</a>
+        </div>
+        <div class="chart-canvas-wrap">
+            <canvas id="@_canvasId"></canvas>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public YearlyStatDto Data { get; set; } = null!;
+
+    private readonly string _canvasId = $"yearly-{Guid.NewGuid():N}";
+    private bool _rendered;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_rendered) return;
+        _rendered = true;
+        var series = new[] { new { name = "Evaluations", values = Data.Values, color = "#6f63d9" } };
+        var categories = Data.Values.Select((_, i) => string.Empty).ToArray();
+        await JS.InvokeVoidAsync("dashboardCharts.renderBar", _canvasId, categories, series, false);
+    }
+}

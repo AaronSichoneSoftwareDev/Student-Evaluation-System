@@ -1,0 +1,41 @@
+@using Evaluate.Application.Dashboard
+@inject IJSRuntime JS
+
+<div class="card">
+    <h3 class="card-title">@Data.Title</h3>
+    <div class="chart-canvas-wrap">
+        <canvas id="@_canvasId"></canvas>
+        <div class="donut-center">
+            <div class="donut-center-value">@Data.CenterValue</div>
+            <div class="donut-center-label">@Data.CenterLabel</div>
+        </div>
+    </div>
+    <div class="chart-totals" style="margin-top:14px;">
+        <div>
+            <div class="chart-total-value">@Data.Total1Value</div>
+            <div class="chart-total-label">@Data.Total1Label</div>
+        </div>
+        <div>
+            <div class="chart-total-value">@Data.Total2Value</div>
+            <div class="chart-total-label">@Data.Total2Label</div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public DonutChartDto Data { get; set; } = null!;
+
+    private readonly string _canvasId = $"donut-{Guid.NewGuid():N}";
+    private bool _rendered;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_rendered) return;
+        _rendered = true;
+        var labels = Data.Segments.Select(s => s.Label).ToArray();
+        var values = Data.Segments.Select(s => s.Value).ToArray();
+        var colors = Data.Segments.Select(s => s.Color).ToArray();
+        await JS.InvokeVoidAsync("dashboardCharts.renderDonut", _canvasId, labels, values, colors);
+    }
+}

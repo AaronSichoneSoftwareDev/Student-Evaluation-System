@@ -1,0 +1,53 @@
+@implements IDisposable
+@inject ConfirmService ConfirmService
+
+@if (_request is not null)
+{
+    <div class="modal-backdrop-custom confirm-backdrop">
+        <div class="confirm-panel">
+            <div class="confirm-icon @VariantClass(_request.Variant)">
+                <i class="bi @IconFor(_request.Variant)"></i>
+            </div>
+            <h3 class="confirm-title">@_request.Title</h3>
+            <p class="confirm-message">@_request.Message</p>
+            <div class="confirm-actions">
+                <button type="button" class="btn-secondary" @onclick="() => Respond(false)">@_request.CancelText</button>
+                <button type="button" class="btn-confirm @VariantClass(_request.Variant)" @onclick="() => Respond(true)">@_request.ConfirmText</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private ConfirmRequest? _request;
+
+    protected override void OnInitialized() => ConfirmService.OnShow += HandleShow;
+
+    private void HandleShow(ConfirmRequest request)
+    {
+        _request = request;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Respond(bool confirmed)
+    {
+        ConfirmService.Resolve(confirmed);
+        _request = null;
+    }
+
+    private static string VariantClass(ConfirmVariant variant) => variant switch
+    {
+        ConfirmVariant.Danger => "confirm-danger",
+        ConfirmVariant.Warning => "confirm-warning",
+        _ => "confirm-info",
+    };
+
+    private static string IconFor(ConfirmVariant variant) => variant switch
+    {
+        ConfirmVariant.Danger => "bi-exclamation-octagon-fill",
+        ConfirmVariant.Warning => "bi-exclamation-triangle-fill",
+        _ => "bi-info-circle-fill",
+    };
+
+    public void Dispose() => ConfirmService.OnShow -= HandleShow;
+}

@@ -1,0 +1,18 @@
+@using Evaluate.Application.Dashboard
+
+<div class="stat-card">
+    <div class="stat-card-top">
+        <span class="stat-card-label">@Stat.Label</span>
+        <span class="stat-card-icon"><i class="bi @Stat.Icon"></i></span>
+    </div>
+    <div class="stat-card-value">@Stat.Value</div>
+    <div class="stat-card-delta">
+        <span class="delta-pill @(Stat.IsPositive ? "" : "negative")">@Stat.DeltaText</span>
+        <span>From previous period</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public StatCardDto Stat { get; set; } = null!;
+}

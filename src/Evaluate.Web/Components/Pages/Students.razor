@@ -1,0 +1,330 @@
+@page "/students"
+@using Evaluate.Application.Students.Queries.GetActiveStudentsList
+@using Evaluate.Application.Students.Queries.GetStudentById
+@using Evaluate.Application.Students.Commands.CreateStudent
+@using Evaluate.Application.Students.Commands.UpdateStudent
+@using Evaluate.Application.Students.Commands.DeactivateStudent
+@using Evaluate.Application.Classes.Queries.GetClassesList
+@using Evaluate.Application.Common.Exceptions
+@using Evaluate.Application.Common.Models
+@using Evaluate.Domain.Enums
+@using MediatR
+@inject IMediator Mediator
+@inject ToastService Toast
+@inject ConfirmService Confirm
+
+<PageTitle>Students - Evaluate</PageTitle>
+
+<PageHeader Title="Students" Subtitle="Students actively enrolled for the current academic term."
+            ShowAddButton="true" AddButtonLabel="Add Student"
+            OnAdd="OpenAddModal" OnRefresh="RefreshAsync" />
+
+<Modal IsVisible="_showModal" Title="@(_editingId.HasValue ? "Edit Student" : "Add Student")"
+       Subtitle="@(_editingId.HasValue ? "Update this student's details and class." : "Register a new student in the system.")"
+       OnClose="CloseModal">
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label">Student Number</label>
+            <input class="form-control" @bind="_form.StudentNumber" placeholder="STU006" disabled="@_editingId.HasValue" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Gender</label>
+            <select class="form-control" @bind="_form.Gender">
+                <option value="@Gender.Male">Male</option>
+                <option value="@Gender.Female">Female</option>
+                <option value="@Gender.Other">Other</option>
+            </select>
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label">First Name</label>
+            <input class="form-control" @bind="_form.FirstName" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <input class="form-control" @bind="_form.LastName" />
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label">Date of Birth</label>
+            <input type="date" class="form-control" @bind="_form.DateOfBirth" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Email (optional)</label>
+            <input type="email" class="form-control" @bind="_form.Email" />
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="form-label">Class</label>
+        <select class="form-control" @bind="_form.ClassId">
+            <option value="0">Not assigned</option>
+            @foreach (var schoolClass in _classes ?? [])
+            {
+                <option value="@schoolClass.Id">@schoolClass.ClassName</option>
+            }
+        </select>
+    </div>
+    @if (_formError is not null)
+    {
+        <p class="form-error">@_formError</p>
+    }
+    <div class="form-actions">
+        <button type="button" class="btn-secondary" @onclick="CloseModal">Cancel</button>
+        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveStudentAsync">
+            @(_saving ? "Saving..." : "Save Student")
+        </button>
+    </div>
+</Modal>
+
+@if (_students is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="dashboard-grid">
+        <DataTablePanel TItem="ActiveStudentDto" Items="_students"
+                         Title="Active Students"
+                         SearchPredicate="@((s, q) => s.FullName.Contains(q, StringComparison.OrdinalIgnoreCase) || s.StudentNumber.Contains(q, StringComparison.OrdinalIgnoreCase) || s.ClassName.Contains(q, StringComparison.OrdinalIgnoreCase))"
+                         SearchPlaceholder="Search students...">
+            <ChildContent Context="items">
+                <div class="table-scroll">
+                    <table class="pro-table">
+                        <thead>
+                            <tr>
+                                <SortableHeader Label="Student #" Column="number" CurrentColumn="_sort" Ascending="_asc" OnSort="Sort" />
+                                <SortableHeader Label="Name" Column="name" CurrentColumn="_sort" Ascending="_asc" OnSort="Sort" />
+                                <SortableHeader Label="Class" Column="class" CurrentColumn="_sort" Ascending="_asc" OnSort="Sort" />
+                                <th>Gender</th>
+                                <th>Email</th>
+                                <SortableHeader Label="Enrolled" Column="date" CurrentColumn="_sort" Ascending="_asc" OnSort="Sort" />
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var student in SortItems(items))
+                            {
+                                <tr>
+                                    <td>@student.StudentNumber</td>
+                                    <td>
+                                        <div class="row-person">
+                                            <div class="avatar">@Initials(student.FullName)</div>
+                                            <span class="row-person-name">@student.FullName</span>
+                                        </div>
+                                    </td>
+                                    <td>@student.ClassName</td>
+                                    <td>@student.Gender</td>
+                                    <td>@(student.Email ?? "—")</td>
+                                    <td>@student.EnrollmentDate.ToString("MMM d, yyyy")</td>
+                                    <td>
+                                        <div class="action-icons">
+                                            @if (student.ReportCardReady)
+                                            {
+                                                <a class="icon-btn-circle" title="Download report card" href="@($"/api/report-cards/{student.StudentId}/current")" target="_blank">
+                                                    <i class="bi bi-file-earmark-pdf-fill"></i>
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="icon-btn-circle icon-btn-circle-disabled" title="Report card not ready — this student hasn't been evaluated in every registered subject yet.">
+                                                    <i class="bi bi-file-earmark-pdf"></i>
+                                                </span>
+                                            }
+                                            <button type="button" class="icon-btn-circle" title="Edit student" @onclick="() => OpenEditModalAsync(student.StudentId)">
+                                                <i class="bi bi-pencil-fill"></i>
+                                            </button>
+                                            <button type="button" class="icon-btn-circle icon-btn-circle-danger" title="Make inactive" @onclick="() => DeactivateStudentAsync(student.StudentId, student.FullName)">
+                                                <i class="bi bi-person-dash-fill"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                            @if (items.Count == 0)
+                            {
+                                <tr class="empty-row"><td colspan="7">No students are actively enrolled for the current term.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </ChildContent>
+        </DataTablePanel>
+    </div>
+}
+
+@code {
+    private List<ActiveStudentDto>? _students;
+    private List<ClassDto>? _classes;
+
+    private string _sort = "name";
+    private bool _asc = true;
+
+    private bool _showModal;
+    private bool _saving;
+    private int? _editingId;
+    private string? _formError;
+    private StudentFormModel _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _classes = await Mediator.Send(new GetClassesListQuery());
+        await RefreshAsync();
+    }
+
+    private void Sort(string column)
+    {
+        _asc = _sort == column ? !_asc : true;
+        _sort = column;
+    }
+
+    private List<ActiveStudentDto> SortItems(IReadOnlyList<ActiveStudentDto> items)
+    {
+        IEnumerable<ActiveStudentDto> query = _sort switch
+        {
+            "number" => items.OrderBy(s => s.StudentNumber),
+            "class" => items.OrderBy(s => s.ClassName),
+            "date" => items.OrderBy(s => s.EnrollmentDate),
+            _ => items.OrderBy(s => s.FullName),
+        };
+        return (_asc ? query : query.Reverse()).ToList();
+    }
+
+    private static string Initials(string fullName)
+    {
+        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length switch
+        {
+            0 => "?",
+            1 => parts[0][..1].ToUpperInvariant(),
+            _ => $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant(),
+        };
+    }
+
+    private async Task RefreshAsync() => _students = await Mediator.Send(new GetActiveStudentsListQuery());
+
+    private void OpenAddModal()
+    {
+        _editingId = null;
+        _form = new StudentFormModel();
+        _formError = null;
+        _showModal = true;
+    }
+
+    private async Task OpenEditModalAsync(int studentId)
+    {
+        var detail = await Mediator.Send(new GetStudentByIdQuery(studentId));
+        if (detail is null)
+        {
+            return;
+        }
+
+        _editingId = detail.Id;
+        _form = new StudentFormModel
+        {
+            StudentNumber = detail.StudentNumber,
+            FirstName = detail.FirstName,
+            LastName = detail.LastName,
+            DateOfBirth = detail.DateOfBirth.ToDateTime(TimeOnly.MinValue),
+            Gender = detail.Gender,
+            Email = detail.Email,
+            ClassId = detail.ClassId ?? 0,
+        };
+        _formError = null;
+        _showModal = true;
+    }
+
+    private void CloseModal() => _showModal = false;
+
+    private async Task DeactivateStudentAsync(int studentId, string studentName)
+    {
+        var confirmed = await Confirm.ConfirmAsync(
+            "Make this student inactive?",
+            $"{studentName} will no longer appear in the active students list. This can be reversed later.",
+            confirmText: "Make Inactive");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var result = await Mediator.Send(new DeactivateStudentCommand(studentId));
+        if (result.Succeeded)
+        {
+            Toast.ShowSuccess("Student deactivated", $"{studentName} is no longer active.");
+            await RefreshAsync();
+        }
+        else
+        {
+            Toast.ShowError("Couldn't deactivate student", string.Join(" ", result.Errors));
+        }
+    }
+
+    private async Task SaveStudentAsync()
+    {
+        _formError = null;
+        _saving = true;
+        try
+        {
+            var classId = _form.ClassId > 0 ? _form.ClassId : (int?)null;
+            var email = string.IsNullOrWhiteSpace(_form.Email) ? null : _form.Email;
+
+            Result result;
+            if (_editingId.HasValue)
+            {
+                result = await Mediator.Send(new UpdateStudentCommand(
+                    _editingId.Value,
+                    _form.FirstName,
+                    _form.LastName,
+                    DateOnly.FromDateTime(_form.DateOfBirth),
+                    _form.Gender,
+                    Email: email,
+                    ClassId: classId));
+            }
+            else
+            {
+                result = await Mediator.Send(new CreateStudentCommand(
+                    _form.StudentNumber,
+                    _form.FirstName,
+                    _form.LastName,
+                    DateOnly.FromDateTime(_form.DateOfBirth),
+                    _form.Gender,
+                    Email: email,
+                    ClassId: classId));
+            }
+
+            if (!result.Succeeded)
+            {
+                _formError = string.Join(" ", result.Errors);
+                return;
+            }
+
+            _showModal = false;
+            var wasEditing = _editingId.HasValue;
+            await RefreshAsync();
+            Toast.ShowSuccess(
+                wasEditing ? "Student updated" : "Student added",
+                wasEditing ? $"{_form.FirstName} {_form.LastName}'s details were saved." : $"{_form.FirstName} {_form.LastName} has been registered.");
+        }
+        catch (ValidationException ex)
+        {
+            _formError = string.Join(" ", ex.Errors.SelectMany(e => e.Value));
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private class StudentFormModel
+    {
+        public string StudentNumber { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public DateTime DateOfBirth { get; set; } = DateTime.Today.AddYears(-12);
+        public Gender Gender { get; set; } = Gender.Male;
+        public string? Email { get; set; }
+        public int ClassId { get; set; }
+    }
+}

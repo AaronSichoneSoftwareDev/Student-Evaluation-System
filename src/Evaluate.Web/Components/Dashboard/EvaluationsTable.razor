@@ -1,0 +1,40 @@
+@using Evaluate.Application.Dashboard
+
+<div class="card">
+    <h3 class="card-title">Latest Evaluations</h3>
+    <div class="table-scroll">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Status</th>
+                    <th>Score</th>
+                    <th>Date</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Rows)
+                {
+                    <tr>
+                        <td>
+                            <div class="row-person">
+                                <div class="avatar">@row.Initials</div>
+                                <span class="row-person-name">@row.StudentName</span>
+                            </div>
+                        </td>
+                        <td><span class="status-dot status-@row.StatusColor">@row.StatusText</span></td>
+                        <td>@row.Score</td>
+                        <td>@row.Date</td>
+                        <td><button type="button" class="btn-edit">Edit</button></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<EvaluationRowDto> Rows { get; set; } = [];
+}

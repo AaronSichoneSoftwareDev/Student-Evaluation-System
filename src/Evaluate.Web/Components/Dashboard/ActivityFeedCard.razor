@@ -1,0 +1,32 @@
+@using Evaluate.Application.Dashboard
+
+<div class="card">
+    <h3 class="card-title">Recent Activity Feed</h3>
+    <div class="activity-list">
+        @for (var i = 0; i < Items.Count; i++)
+        {
+            var item = Items[i];
+            var isLast = i == Items.Count - 1;
+            <div class="activity-item">
+                <div class="activity-dot-col">
+                    <div class="activity-dot"></div>
+                    @if (!isLast)
+                    {
+                        <div class="activity-line"></div>
+                    }
+                </div>
+                <div>
+                    <div class="activity-date">@item.Date</div>
+                    <div class="activity-title">@item.Title</div>
+                    <div class="activity-desc">@item.Description</div>
+                </div>
+            </div>
+        }
+    </div>
+    <button type="button" class="btn-load-more">Load More</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ActivityItemDto> Items { get; set; } = [];
+}

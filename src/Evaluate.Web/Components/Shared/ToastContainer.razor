@@ -1,0 +1,44 @@
+@implements IDisposable
+@inject ToastService ToastService
+
+<div class="toast-stack">
+    @foreach (var toast in ToastService.Toasts)
+    {
+        <div class="toast-card @VariantClass(toast.Variant)">
+            <div class="toast-icon">
+                <i class="bi @IconFor(toast.Variant)"></i>
+            </div>
+            <div class="toast-body">
+                <div class="toast-title">@toast.Title</div>
+                <div class="toast-message">@toast.Message</div>
+            </div>
+            <button type="button" class="toast-close" aria-label="Dismiss" @onclick="() => ToastService.Remove(toast.Id)">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => ToastService.OnChange += HandleChange;
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    private static string VariantClass(ToastVariant variant) => variant switch
+    {
+        ToastVariant.Success => "toast-success",
+        ToastVariant.Error => "toast-error",
+        ToastVariant.Warning => "toast-warning",
+        _ => "toast-info",
+    };
+
+    private static string IconFor(ToastVariant variant) => variant switch
+    {
+        ToastVariant.Success => "bi-check-lg",
+        ToastVariant.Error => "bi-exclamation-triangle-fill",
+        ToastVariant.Warning => "bi-exclamation-lg",
+        _ => "bi-info-lg",
+    };
+
+    public void Dispose() => ToastService.OnChange -= HandleChange;
+}

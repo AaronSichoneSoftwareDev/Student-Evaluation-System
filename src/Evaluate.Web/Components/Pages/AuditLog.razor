@@ -1,0 +1,98 @@
+@page "/audit-log"
+@using Evaluate.Application.AuditLogs.Queries.GetAuditLogsList
+@using MediatR
+@inject IMediator Mediator
+
+<PageTitle>Audit Log - Evaluate</PageTitle>
+
+<PageHeader Title="Audit Log" Subtitle="System-generated record of every create, update, and delete."
+            OnRefresh="RefreshAsync" />
+
+@if (_logs is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <DataTablePanel TItem="AuditLogDto" Items="_logs"
+                     Tabs="_logTabs"
+                     SearchPredicate="@((l, q) => l.TableName.Contains(q, StringComparison.OrdinalIgnoreCase) || (l.RecordId ?? "").Contains(q, StringComparison.OrdinalIgnoreCase))"
+                     SearchPlaceholder="Search audit log...">
+        <ChildContent Context="items">
+            <div class="table-scroll">
+                <table class="pro-table">
+                    <thead>
+                        <tr>
+                            <SortableHeader Label="Timestamp" Column="time" CurrentColumn="_sort" Ascending="_asc" OnSort="Sort" />
+                            <th>Action</th>
+                            <SortableHeader Label="Table" Column="table" CurrentColumn="_sort" Ascending="_asc" OnSort="Sort" />
+                            <th>Record</th>
+                            <th>User</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var log in SortItems(items))
+                        {
+                            <tr>
+                                <td>@log.Timestamp.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</td>
+                                <td><span class="status-pill @PillClass(log.Action)">@log.Action</span></td>
+                                <td>@log.TableName</td>
+                                <td>@(log.RecordId ?? "—")</td>
+                                <td>@(log.UserId ?? "System")</td>
+                            </tr>
+                        }
+                        @if (items.Count == 0)
+                        {
+                            <tr class="empty-row"><td colspan="5">No audit entries match.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </ChildContent>
+    </DataTablePanel>
+}
+
+@code {
+    private List<AuditLogDto>? _logs;
+    private string _sort = "time";
+    private bool _asc = false;
+    private List<TableTab<AuditLogDto>> _logTabs = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+
+        _logTabs =
+        [
+            new("all", "All"),
+            new("added", "Added", l => l.Action == "Added"),
+            new("modified", "Modified", l => l.Action == "Modified"),
+            new("deleted", "Deleted", l => l.Action == "Deleted"),
+        ];
+    }
+
+    private async Task RefreshAsync() => _logs = await Mediator.Send(new GetAuditLogsListQuery(Take: 200));
+
+    private void Sort(string column)
+    {
+        _asc = _sort == column ? !_asc : true;
+        _sort = column;
+    }
+
+    private List<AuditLogDto> SortItems(IReadOnlyList<AuditLogDto> items)
+    {
+        IEnumerable<AuditLogDto> query = _sort switch
+        {
+            "table" => items.OrderBy(l => l.TableName),
+            _ => items.OrderBy(l => l.Timestamp),
+        };
+        return (_asc ? query : query.Reverse()).ToList();
+    }
+
+    private static string PillClass(string action) => action switch
+    {
+        "Added" => "pill-green",
+        "Deleted" => "pill-red",
+        _ => "pill-amber",
+    };
+}

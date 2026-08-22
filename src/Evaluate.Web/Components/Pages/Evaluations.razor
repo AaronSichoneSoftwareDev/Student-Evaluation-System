@@ -1,0 +1,353 @@
+@page "/evaluations"
+@using Evaluate.Application.Evaluations.Queries.GetPendingEvaluationsList
+@using Evaluate.Application.Evaluations.Commands.CreateEvaluation
+@using Evaluate.Application.Topics.Queries.GetTopicsList
+@using Evaluate.Application.Classes.Queries.GetClassesList
+@using Evaluate.Application.Identity
+@using Evaluate.Application.Identity.Queries.GetUsersList
+@using Evaluate.Application.Common.Exceptions
+@using MediatR
+@inject IMediator Mediator
+@inject ToastService Toast
+
+<PageTitle>Evaluations - Evaluate</PageTitle>
+
+<PageHeader Title="Evaluations" Subtitle="Students still pending evaluation for the current term, by teacher and class."
+            OnRefresh="RefreshFiltersAsync" />
+
+<Modal IsVisible="_showEvaluateModal" Title="@($"Evaluate {_evaluatingStudent?.StudentName}")"
+       Subtitle="@_evaluatingStudent?.TermName"
+       OnClose="CloseEvaluateModal">
+    <div class="form-group">
+        <label class="form-label">Subject</label>
+        <select class="form-control" @bind="_selectedCourseId" @bind:after="OnSubjectSelectedAsync">
+            <option value="0">Select a subject...</option>
+            @foreach (var course in _availableCourses)
+            {
+                <option value="@course.CourseId">@course.CourseName</option>
+            }
+        </select>
+    </div>
+
+    @if (_selectedCourseId == 0)
+    {
+        <p style="color:var(--muted);font-size:0.85rem;">Choose a subject to see its topics.</p>
+    }
+    else if (_evaluateTopics is null)
+    {
+        <p>Loading topics...</p>
+    }
+    else if (_evaluateTopics.Count == 0)
+    {
+        <p style="color:var(--muted);font-size:0.85rem;">This subject has no topics yet — add some under Courses first.</p>
+    }
+    else
+    {
+        @foreach (var topicForm in _topicForms)
+        {
+            <div class="form-group" style="border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:14px;">
+                <label class="form-label">@topicForm.TopicName</label>
+                <div class="form-row">
+                    <div class="form-group" style="flex:0 0 110px;margin-bottom:0;">
+                        <input type="number" min="0" max="100" class="form-control" placeholder="Score" @bind="topicForm.Score" />
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <input class="form-control" placeholder="Comment for this topic" @bind="topicForm.Comment" />
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="form-group">
+            <label class="form-label">Overall Comments (optional)</label>
+            <textarea class="form-control" rows="2" @bind="_overallComments"></textarea>
+        </div>
+
+        @if (_evaluateError is not null)
+        {
+            <p class="form-error">@_evaluateError</p>
+        }
+
+        <div class="form-actions">
+            <button type="button" class="btn-secondary" @onclick="CloseEvaluateModal">Cancel</button>
+            <button type="button" class="btn-primary" disabled="@_evaluateSaving" @onclick="SubmitEvaluationAsync">
+                @(_evaluateSaving ? "Saving..." : "Submit Evaluation")
+            </button>
+        </div>
+    }
+</Modal>
+
+@if (_classes is null || _teachers is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="dashboard-grid">
+        <div class="card">
+            <h3 class="card-title">Filters</h3>
+            <div class="filter-row">
+                <div>
+                    <label class="filter-label" for="teacherSelect">Teacher</label>
+                    <select id="teacherSelect" class="filter-select" @bind="_selectedTeacherId" @bind:after="LoadPendingAsync">
+                        <option value="">Select a teacher...</option>
+                        @foreach (var teacher in _teachers)
+                        {
+                            <option value="@teacher.Id">@teacher.FirstName @teacher.LastName</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="filter-label" for="classSelect">Class</label>
+                    <select id="classSelect" class="filter-select" @bind="_selectedClassId" @bind:after="LoadPendingAsync">
+                        <option value="0">Select a class...</option>
+                        @foreach (var schoolClass in _classes)
+                        {
+                            <option value="@schoolClass.Id">@schoolClass.ClassName</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        @if (string.IsNullOrEmpty(_selectedTeacherId) || _selectedClassId == 0)
+        {
+            <div class="card">
+                <p style="color:var(--muted);font-size:0.85rem;margin:0;">Choose a teacher and a class above to see who still needs evaluating.</p>
+            </div>
+        }
+        else if (_result is null)
+        {
+            <div class="card"><p style="margin:0;">Loading...</p></div>
+        }
+        else if (!_result.HasCurrentTerm)
+        {
+            <div class="card">
+                <p style="color:var(--muted);font-size:0.85rem;margin:0;">No academic year is marked as current — set one in Academic Setup first.</p>
+            </div>
+        }
+        else if (_result.TermName is null)
+        {
+            <div class="card">
+                <p style="color:var(--muted);font-size:0.85rem;margin:0;">@_result.AcademicYearName has no term marked as current.</p>
+            </div>
+        }
+        else if (!_result.TeacherAssigned)
+        {
+            <div class="card">
+                <p style="color:var(--muted);font-size:0.85rem;margin:0;">This teacher isn't assigned to that class for @_result.AcademicYearName.</p>
+            </div>
+        }
+        else
+        {
+            <DataTablePanel TItem="PendingEvaluationDto" Items="_result.Students"
+                             Title="@($"Pending Evaluations — {string.Join(", ", _result.AvailableCourses.Select(c => c.CourseName))}, {_result.TermName} ({_result.Students.Count})")"
+                             SearchPredicate="@((s, q) => s.StudentName.Contains(q, StringComparison.OrdinalIgnoreCase) || s.StudentNumber.Contains(q, StringComparison.OrdinalIgnoreCase))"
+                             SearchPlaceholder="Search students...">
+                <ChildContent Context="items">
+                    <div class="table-scroll">
+                        <table class="pro-table">
+                            <thead>
+                                <tr>
+                                    <SortableHeader Label="Student #" Column="number" CurrentColumn="_sort" Ascending="_asc" OnSort="Sort" />
+                                    <SortableHeader Label="Name" Column="name" CurrentColumn="_sort" Ascending="_asc" OnSort="Sort" />
+                                    <th>Class</th>
+                                    <th>Term</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var student in SortItems(items))
+                                {
+                                    <tr>
+                                        <td>@student.StudentNumber</td>
+                                        <td>
+                                            <div class="row-person">
+                                                <div class="avatar">@Initials(student.StudentName)</div>
+                                                <span class="row-person-name">@student.StudentName</span>
+                                            </div>
+                                        </td>
+                                        <td>@student.ClassName</td>
+                                        <td>@student.TermName</td>
+                                        <td>
+                                            <button type="button" class="btn-primary" style="padding:6px 16px;font-size:0.75rem;" @onclick="() => OpenEvaluateModal(student)">
+                                                Evaluate
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                                @if (items.Count == 0)
+                                {
+                                    <tr class="empty-row"><td colspan="5">Everyone in this class has been evaluated for @_result.TermName.</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </ChildContent>
+            </DataTablePanel>
+        }
+    </div>
+}
+
+@code {
+    private List<ClassDto>? _classes;
+    private List<UserSummary>? _teachers;
+    private PendingEvaluationsResult? _result;
+
+    private string _selectedTeacherId = string.Empty;
+    private int _selectedClassId;
+
+    private string _sort = "name";
+    private bool _asc = true;
+
+    private bool _showEvaluateModal;
+    private bool _evaluateSaving;
+    private string? _evaluateError;
+    private PendingEvaluationDto? _evaluatingStudent;
+    private List<CourseOptionDto> _availableCourses = [];
+    private int _selectedCourseId;
+    private List<TopicDto>? _evaluateTopics;
+    private List<TopicScoreFormModel> _topicForms = [];
+    private string? _overallComments;
+
+    protected override async Task OnInitializedAsync() => await RefreshFiltersAsync();
+
+    private async Task RefreshFiltersAsync()
+    {
+        _classes = await Mediator.Send(new GetClassesListQuery());
+        var users = await Mediator.Send(new GetUsersListQuery());
+        _teachers = users.Where(u => u.Roles.Contains("Teacher")).ToList();
+        await LoadPendingAsync();
+    }
+
+    private async Task LoadPendingAsync()
+    {
+        if (string.IsNullOrEmpty(_selectedTeacherId) || _selectedClassId == 0)
+        {
+            _result = null;
+            return;
+        }
+
+        _result = await Mediator.Send(new GetPendingEvaluationsListQuery(_selectedClassId, _selectedTeacherId));
+    }
+
+    private void Sort(string column)
+    {
+        _asc = _sort == column ? !_asc : true;
+        _sort = column;
+    }
+
+    private List<PendingEvaluationDto> SortItems(IReadOnlyList<PendingEvaluationDto> items)
+    {
+        IEnumerable<PendingEvaluationDto> query = _sort switch
+        {
+            "number" => items.OrderBy(s => s.StudentNumber),
+            _ => items.OrderBy(s => s.StudentName),
+        };
+        return (_asc ? query : query.Reverse()).ToList();
+    }
+
+    private static string Initials(string fullName)
+    {
+        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length switch
+        {
+            0 => "?",
+            1 => parts[0][..1].ToUpperInvariant(),
+            _ => $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant(),
+        };
+    }
+
+    private async Task OpenEvaluateModal(PendingEvaluationDto student)
+    {
+        _evaluatingStudent = student;
+        _evaluateError = null;
+        _overallComments = null;
+        _evaluateTopics = null;
+        _topicForms = [];
+        _availableCourses = _result?.AvailableCourses ?? [];
+        // Skip the pointless extra click when there's only one subject to choose from.
+        _selectedCourseId = _availableCourses.Count == 1 ? _availableCourses[0].CourseId : 0;
+        _showEvaluateModal = true;
+
+        if (_selectedCourseId != 0)
+        {
+            await LoadTopicsAsync(_selectedCourseId);
+        }
+    }
+
+    private async Task OnSubjectSelectedAsync()
+    {
+        _evaluateTopics = null;
+        _topicForms = [];
+
+        if (_selectedCourseId != 0)
+        {
+            await LoadTopicsAsync(_selectedCourseId);
+        }
+    }
+
+    private async Task LoadTopicsAsync(int courseId)
+    {
+        var topics = await Mediator.Send(new GetTopicsListQuery(courseId));
+        _evaluateTopics = topics;
+        _topicForms = topics
+            .OrderBy(t => t.TopicOrder)
+            .Select(t => new TopicScoreFormModel { TopicId = t.Id, TopicName = t.TopicName })
+            .ToList();
+    }
+
+    private void CloseEvaluateModal() => _showEvaluateModal = false;
+
+    private async Task SubmitEvaluationAsync()
+    {
+        if (_evaluatingStudent is null || _selectedCourseId == 0)
+        {
+            return;
+        }
+
+        _evaluateError = null;
+        _evaluateSaving = true;
+        try
+        {
+            var command = new CreateEvaluationCommand(
+                _evaluatingStudent.StudentId,
+                _selectedTeacherId,
+                _selectedCourseId,
+                _evaluatingStudent.AcademicYearId,
+                _evaluatingStudent.TermId,
+                DateOnly.FromDateTime(DateTime.Today),
+                _topicForms.Select(f => new TopicScoreInput(f.TopicId, f.Score, string.IsNullOrWhiteSpace(f.Comment) ? null : f.Comment)).ToList(),
+                string.IsNullOrWhiteSpace(_overallComments) ? null : _overallComments);
+
+            var result = await Mediator.Send(command);
+
+            if (!result.Succeeded)
+            {
+                _evaluateError = string.Join(" ", result.Errors);
+                return;
+            }
+
+            var studentName = _evaluatingStudent.StudentName;
+            _showEvaluateModal = false;
+            await LoadPendingAsync();
+            Toast.ShowSuccess("Evaluation submitted", $"{studentName} has been evaluated.");
+        }
+        catch (ValidationException ex)
+        {
+            _evaluateError = string.Join(" ", ex.Errors.SelectMany(e => e.Value));
+        }
+        finally
+        {
+            _evaluateSaving = false;
+        }
+    }
+
+    private class TopicScoreFormModel
+    {
+        public int TopicId { get; set; }
+        public string TopicName { get; set; } = string.Empty;
+        public decimal Score { get; set; }
+        public string? Comment { get; set; }
+    }
+}

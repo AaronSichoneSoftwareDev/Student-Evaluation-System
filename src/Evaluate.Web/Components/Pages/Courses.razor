@@ -1,0 +1,318 @@
+@page "/courses"
+@using Evaluate.Application.Courses.Queries.GetCoursesList
+@using Evaluate.Application.Courses.Commands.CreateCourse
+@using Evaluate.Application.Topics.Queries.GetTopicsList
+@using Evaluate.Application.Topics.Commands.CreateTopic
+@using Evaluate.Application.Common.Exceptions
+@using MediatR
+@inject IMediator Mediator
+@inject ToastService Toast
+
+<PageTitle>Courses - Evaluate</PageTitle>
+
+<PageHeader Title="Courses" Subtitle="Courses and the topics taught within them."
+            AddOptions="_addOptions" OnRefresh="RefreshAsync" />
+
+<Modal IsVisible="_showCourseModal" Title="Add Course" Subtitle="Create a new course students can be evaluated in." OnClose="() => _showCourseModal = false">
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label">Course Code</label>
+            <input class="form-control" @bind="_courseForm.CourseCode" placeholder="HIST01" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Course Name</label>
+            <input class="form-control" @bind="_courseForm.CourseName" placeholder="History" />
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="form-label">Description (optional)</label>
+        <input class="form-control" @bind="_courseForm.Description" />
+    </div>
+    @if (_courseFormError is not null)
+    {
+        <p class="form-error">@_courseFormError</p>
+    }
+    <div class="form-actions">
+        <button type="button" class="btn-secondary" @onclick="() => _showCourseModal = false">Cancel</button>
+        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveCourseAsync">@(_saving ? "Saving..." : "Save Course")</button>
+    </div>
+</Modal>
+
+<Modal IsVisible="_showTopicModal" Title="Add Topic" Subtitle="Add a topic taught within a course." OnClose="() => _showTopicModal = false">
+    <div class="form-group">
+        <label class="form-label">Course</label>
+        <select class="form-control" @bind="_topicForm.CourseId">
+            <option value="0">Select a course...</option>
+            @foreach (var course in _courses ?? [])
+            {
+                <option value="@course.Id">@course.CourseName</option>
+            }
+        </select>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label">Topic Name</label>
+            <input class="form-control" @bind="_topicForm.TopicName" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Order</label>
+            <input type="number" min="0" class="form-control" @bind="_topicForm.TopicOrder" />
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="form-label">Description (optional)</label>
+        <input class="form-control" @bind="_topicForm.Description" />
+    </div>
+    @if (_topicFormError is not null)
+    {
+        <p class="form-error">@_topicFormError</p>
+    }
+    <div class="form-actions">
+        <button type="button" class="btn-secondary" @onclick="() => _showTopicModal = false">Cancel</button>
+        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveTopicAsync">@(_saving ? "Saving..." : "Save Topic")</button>
+    </div>
+</Modal>
+
+@if (_courses is null || _topics is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="dashboard-grid">
+        <DataTablePanel TItem="CourseDto" Items="_courses"
+                         Tabs="_courseTabs"
+                         SearchPredicate="@((c, q) => c.CourseName.Contains(q, StringComparison.OrdinalIgnoreCase) || c.CourseCode.Contains(q, StringComparison.OrdinalIgnoreCase))"
+                         SearchPlaceholder="Search courses...">
+            <ChildContent Context="items">
+                <div class="table-scroll">
+                    <table class="pro-table">
+                        <thead>
+                            <tr>
+                                <SortableHeader Label="Code" Column="code" CurrentColumn="_courseSort" Ascending="_courseAsc" OnSort="SortCourses" />
+                                <SortableHeader Label="Name" Column="name" CurrentColumn="_courseSort" Ascending="_courseAsc" OnSort="SortCourses" />
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var course in SortCourseItems(items))
+                            {
+                                <tr>
+                                    <td>@course.CourseCode</td>
+                                    <td>@course.CourseName</td>
+                                    <td><span class="status-pill @(course.IsActive ? "pill-green" : "pill-red")">@(course.IsActive ? "Active" : "Inactive")</span></td>
+                                </tr>
+                            }
+                            @if (items.Count == 0)
+                            {
+                                <tr class="empty-row"><td colspan="3">No courses match.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </ChildContent>
+        </DataTablePanel>
+
+        <DataTablePanel TItem="TopicDto" Items="_topics"
+                         Title="Topics"
+                         SearchPredicate="@((t, q) => t.TopicName.Contains(q, StringComparison.OrdinalIgnoreCase))"
+                         SearchPlaceholder="Search topics...">
+            <ChildContent Context="items">
+                <div class="table-scroll">
+                    <table class="pro-table">
+                        <thead>
+                            <tr>
+                                <SortableHeader Label="#" Column="order" CurrentColumn="_topicSort" Ascending="_topicAsc" OnSort="SortTopics" />
+                                <SortableHeader Label="Topic" Column="name" CurrentColumn="_topicSort" Ascending="_topicAsc" OnSort="SortTopics" />
+                                <th>Course</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var topic in SortTopicItems(items))
+                            {
+                                <tr>
+                                    <td>@topic.TopicOrder</td>
+                                    <td>@topic.TopicName</td>
+                                    <td>@CourseName(topic.CourseId)</td>
+                                </tr>
+                            }
+                            @if (items.Count == 0)
+                            {
+                                <tr class="empty-row"><td colspan="3">No topics match.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </ChildContent>
+        </DataTablePanel>
+    </div>
+}
+
+@code {
+    private List<CourseDto>? _courses;
+    private List<TopicDto>? _topics;
+
+    private string _courseSort = "name";
+    private bool _courseAsc = true;
+    private string _topicSort = "order";
+    private bool _topicAsc = true;
+
+    private List<TableTab<CourseDto>> _courseTabs = [];
+
+    private List<AddMenuItem> _addOptions = [];
+    private bool _showCourseModal;
+    private bool _showTopicModal;
+    private bool _saving;
+    private string? _courseFormError;
+    private string? _topicFormError;
+    private CourseFormModel _courseForm = new();
+    private TopicFormModel _topicForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _courses = await Mediator.Send(new GetCoursesListQuery());
+        _topics = await Mediator.Send(new GetTopicsListQuery());
+
+        _addOptions =
+        [
+            new("Add Course", EventCallback.Factory.Create(this, OpenCourseModal)),
+            new("Add Topic", EventCallback.Factory.Create(this, OpenTopicModal)),
+        ];
+
+        _courseTabs =
+        [
+            new("all", "All"),
+            new("active", "Active", c => c.IsActive),
+            new("inactive", "Inactive", c => !c.IsActive),
+        ];
+    }
+
+    private void SortCourses(string column)
+    {
+        _courseAsc = _courseSort == column ? !_courseAsc : true;
+        _courseSort = column;
+    }
+
+    private void SortTopics(string column)
+    {
+        _topicAsc = _topicSort == column ? !_topicAsc : true;
+        _topicSort = column;
+    }
+
+    private List<CourseDto> SortCourseItems(IReadOnlyList<CourseDto> items)
+    {
+        IEnumerable<CourseDto> query = _courseSort switch
+        {
+            "code" => items.OrderBy(c => c.CourseCode),
+            _ => items.OrderBy(c => c.CourseName),
+        };
+        return (_courseAsc ? query : query.Reverse()).ToList();
+    }
+
+    private List<TopicDto> SortTopicItems(IReadOnlyList<TopicDto> items)
+    {
+        IEnumerable<TopicDto> query = _topicSort switch
+        {
+            "name" => items.OrderBy(t => t.TopicName),
+            _ => items.OrderBy(t => t.TopicOrder),
+        };
+        return (_topicAsc ? query : query.Reverse()).ToList();
+    }
+
+    private string CourseName(int courseId) => _courses?.FirstOrDefault(c => c.Id == courseId)?.CourseName ?? "Unknown";
+
+    private async Task RefreshAsync()
+    {
+        _courses = await Mediator.Send(new GetCoursesListQuery());
+        _topics = await Mediator.Send(new GetTopicsListQuery());
+    }
+
+    private void OpenCourseModal()
+    {
+        _courseForm = new CourseFormModel();
+        _courseFormError = null;
+        _showCourseModal = true;
+    }
+
+    private void OpenTopicModal()
+    {
+        _topicForm = new TopicFormModel();
+        _topicFormError = null;
+        _showTopicModal = true;
+    }
+
+    private async Task SaveCourseAsync()
+    {
+        _courseFormError = null;
+        _saving = true;
+        try
+        {
+            var command = new CreateCourseCommand(_courseForm.CourseCode, _courseForm.CourseName, string.IsNullOrWhiteSpace(_courseForm.Description) ? null : _courseForm.Description);
+            var result = await Mediator.Send(command);
+            if (!result.Succeeded)
+            {
+                _courseFormError = string.Join(" ", result.Errors);
+                return;
+            }
+            _showCourseModal = false;
+            await RefreshAsync();
+            Toast.ShowSuccess("Course added", $"{_courseForm.CourseName} has been created.");
+        }
+        catch (ValidationException ex)
+        {
+            _courseFormError = string.Join(" ", ex.Errors.SelectMany(e => e.Value));
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SaveTopicAsync()
+    {
+        _topicFormError = null;
+        _saving = true;
+        try
+        {
+            if (_topicForm.CourseId == 0)
+            {
+                _topicFormError = "Select a course.";
+                return;
+            }
+
+            var command = new CreateTopicCommand(_topicForm.CourseId, _topicForm.TopicName, _topicForm.TopicOrder, string.IsNullOrWhiteSpace(_topicForm.Description) ? null : _topicForm.Description);
+            var result = await Mediator.Send(command);
+            if (!result.Succeeded)
+            {
+                _topicFormError = string.Join(" ", result.Errors);
+                return;
+            }
+            _showTopicModal = false;
+            await RefreshAsync();
+            Toast.ShowSuccess("Topic added", $"{_topicForm.TopicName} has been created.");
+        }
+        catch (ValidationException ex)
+        {
+            _topicFormError = string.Join(" ", ex.Errors.SelectMany(e => e.Value));
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private class CourseFormModel
+    {
+        public string CourseCode { get; set; } = string.Empty;
+        public string CourseName { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+
+    private class TopicFormModel
+    {
+        public int CourseId { get; set; }
+        public string TopicName { get; set; } = string.Empty;
+        public int TopicOrder { get; set; } = 1;
+        public string? Description { get; set; }
+    }
+}

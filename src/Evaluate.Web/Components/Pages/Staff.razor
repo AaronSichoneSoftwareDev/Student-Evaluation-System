@@ -1,0 +1,376 @@
+@page "/staff"
+@using Evaluate.Application.TeacherCourses.Queries.GetTeacherCoursesList
+@using Evaluate.Application.TeacherCourses.Commands.AssignTeacherCourse
+@using Evaluate.Application.Identity
+@using Evaluate.Application.Identity.Queries.GetUsersList
+@using Evaluate.Application.Identity.Commands.RegisterUser
+@using Evaluate.Application.Courses.Queries.GetCoursesList
+@using Evaluate.Application.AcademicYears.Queries.GetAcademicYearsList
+@using Evaluate.Application.Classes.Queries.GetClassesList
+@using Evaluate.Application.Common.Exceptions
+@using MediatR
+@inject IMediator Mediator
+@inject ToastService Toast
+
+<PageTitle>Staff - Evaluate</PageTitle>
+
+<PageHeader Title="Staff" Subtitle="System users and their course assignments."
+            AddOptions="_addOptions" OnRefresh="RefreshAsync" />
+
+<Modal IsVisible="_showUserModal" Title="Add User" Subtitle="Create a new administrator or teacher account." OnClose="() => _showUserModal = false">
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label">First Name</label>
+            <input class="form-control" @bind="_userForm.FirstName" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <input class="form-control" @bind="_userForm.LastName" />
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="form-label">Email (used as username)</label>
+        <input type="email" class="form-control" @bind="_userForm.Email" />
+    </div>
+    <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" @bind="_userForm.Password" />
+    </div>
+    <div class="form-group">
+        <label class="form-label">Role</label>
+        <select class="form-control" @bind="_userForm.Role">
+            <option value="Teacher">Teacher</option>
+            <option value="Administrator">Administrator</option>
+        </select>
+    </div>
+    @if (_userFormError is not null)
+    {
+        <p class="form-error">@_userFormError</p>
+    }
+    <div class="form-actions">
+        <button type="button" class="btn-secondary" @onclick="() => _showUserModal = false">Cancel</button>
+        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveUserAsync">@(_saving ? "Saving..." : "Save User")</button>
+    </div>
+</Modal>
+
+<Modal IsVisible="_showAssignmentModal" Title="Assign Teacher to Course" Subtitle="Give a teacher access to evaluate a course for a class." OnClose="() => _showAssignmentModal = false">
+    <div class="form-group">
+        <label class="form-label">Teacher</label>
+        <select class="form-control" @bind="_assignmentForm.TeacherUserId">
+            <option value="">Select a teacher...</option>
+            @foreach (var teacher in (_users ?? []).Where(u => u.Roles.Contains("Teacher")))
+            {
+                <option value="@teacher.Id">@teacher.FirstName @teacher.LastName</option>
+            }
+        </select>
+    </div>
+    <div class="form-group">
+        <label class="form-label">Course</label>
+        <select class="form-control" @bind="_assignmentForm.CourseId">
+            <option value="0">Select a course...</option>
+            @foreach (var course in _courses ?? [])
+            {
+                <option value="@course.Id">@course.CourseName</option>
+            }
+        </select>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label">Academic Year</label>
+            <select class="form-control" @bind="_assignmentForm.AcademicYearId">
+                <option value="0">Select a year...</option>
+                @foreach (var year in _years ?? [])
+                {
+                    <option value="@year.Id">@year.YearName</option>
+                }
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Class</label>
+            <select class="form-control" @bind="_assignmentForm.ClassId">
+                <option value="0">Select a class...</option>
+                @foreach (var schoolClass in _classes ?? [])
+                {
+                    <option value="@schoolClass.Id">@schoolClass.ClassName</option>
+                }
+            </select>
+        </div>
+    </div>
+    @if (_assignmentFormError is not null)
+    {
+        <p class="form-error">@_assignmentFormError</p>
+    }
+    <div class="form-actions">
+        <button type="button" class="btn-secondary" @onclick="() => _showAssignmentModal = false">Cancel</button>
+        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveAssignmentAsync">@(_saving ? "Saving..." : "Save Assignment")</button>
+    </div>
+</Modal>
+
+@if (_assignments is null || _users is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="dashboard-grid">
+        <DataTablePanel TItem="UserSummary" Items="_users"
+                         Tabs="_userTabs"
+                         SearchPredicate="@((u, q) => $"{u.FirstName} {u.LastName}".Contains(q, StringComparison.OrdinalIgnoreCase) || (u.Email ?? "").Contains(q, StringComparison.OrdinalIgnoreCase))"
+                         SearchPlaceholder="Search users...">
+            <ChildContent Context="items">
+                <div class="table-scroll">
+                    <table class="pro-table">
+                        <thead>
+                            <tr>
+                                <SortableHeader Label="Name" Column="name" CurrentColumn="_userSort" Ascending="_userAsc" OnSort="SortUsers" />
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in SortUserItems(items))
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="row-person">
+                                            <div class="avatar">@Initials(user.FirstName, user.LastName)</div>
+                                            <span class="row-person-name">@user.FirstName @user.LastName</span>
+                                        </div>
+                                    </td>
+                                    <td>@user.Email</td>
+                                    <td>@string.Join(", ", user.Roles)</td>
+                                    <td><span class="status-pill @(user.IsActive ? "pill-green" : "pill-red")">@(user.IsActive ? "Active" : "Inactive")</span></td>
+                                </tr>
+                            }
+                            @if (items.Count == 0)
+                            {
+                                <tr class="empty-row"><td colspan="4">No users match.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </ChildContent>
+        </DataTablePanel>
+
+        <DataTablePanel TItem="TeacherCourseDto" Items="_assignments"
+                         Tabs="_assignmentTabs"
+                         SearchPredicate="@((a, q) => (a.TeacherName ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) || a.CourseName.Contains(q, StringComparison.OrdinalIgnoreCase))"
+                         SearchPlaceholder="Search assignments...">
+            <ChildContent Context="items">
+                <div class="table-scroll">
+                    <table class="pro-table">
+                        <thead>
+                            <tr>
+                                <SortableHeader Label="Teacher" Column="teacher" CurrentColumn="_assignmentSort" Ascending="_assignmentAsc" OnSort="SortAssignments" />
+                                <SortableHeader Label="Course" Column="course" CurrentColumn="_assignmentSort" Ascending="_assignmentAsc" OnSort="SortAssignments" />
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var assignment in SortAssignmentItems(items))
+                            {
+                                <tr>
+                                    <td>@(assignment.TeacherName ?? "Unknown")</td>
+                                    <td>@assignment.CourseName</td>
+                                    <td><span class="status-pill @(assignment.IsActive ? "pill-green" : "pill-red")">@(assignment.IsActive ? "Active" : "Inactive")</span></td>
+                                </tr>
+                            }
+                            @if (items.Count == 0)
+                            {
+                                <tr class="empty-row"><td colspan="3">No assignments match.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </ChildContent>
+        </DataTablePanel>
+    </div>
+}
+
+@code {
+    private List<TeacherCourseDto>? _assignments;
+    private List<UserSummary>? _users;
+
+    private string _userSort = "name";
+    private bool _userAsc = true;
+    private string _assignmentSort = "teacher";
+    private bool _assignmentAsc = true;
+
+    private List<TableTab<UserSummary>> _userTabs = [];
+    private List<TableTab<TeacherCourseDto>> _assignmentTabs = [];
+
+    private List<CourseDto>? _courses;
+    private List<AcademicYearDto>? _years;
+    private List<ClassDto>? _classes;
+
+    private List<AddMenuItem> _addOptions = [];
+    private bool _showUserModal;
+    private bool _showAssignmentModal;
+    private bool _saving;
+    private string? _userFormError;
+    private string? _assignmentFormError;
+    private UserFormModel _userForm = new();
+    private AssignmentFormModel _assignmentForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _assignments = await Mediator.Send(new GetTeacherCoursesListQuery());
+        _users = await Mediator.Send(new GetUsersListQuery());
+        _courses = await Mediator.Send(new GetCoursesListQuery());
+        _years = await Mediator.Send(new GetAcademicYearsListQuery());
+        _classes = await Mediator.Send(new GetClassesListQuery());
+
+        _addOptions =
+        [
+            new("Add User", EventCallback.Factory.Create(this, OpenUserModal)),
+            new("Assign Teacher to Course", EventCallback.Factory.Create(this, OpenAssignmentModal)),
+        ];
+
+        _userTabs =
+        [
+            new("all", "All"),
+            new("administrator", "Administrators", u => u.Roles.Contains("Administrator")),
+            new("teacher", "Teachers", u => u.Roles.Contains("Teacher")),
+        ];
+
+        _assignmentTabs =
+        [
+            new("all", "All"),
+            new("active", "Active", a => a.IsActive),
+            new("inactive", "Inactive", a => !a.IsActive),
+        ];
+    }
+
+    private void SortUsers(string column)
+    {
+        _userAsc = _userSort == column ? !_userAsc : true;
+        _userSort = column;
+    }
+
+    private void SortAssignments(string column)
+    {
+        _assignmentAsc = _assignmentSort == column ? !_assignmentAsc : true;
+        _assignmentSort = column;
+    }
+
+    private List<UserSummary> SortUserItems(IReadOnlyList<UserSummary> items)
+    {
+        var query = items.OrderBy(u => u.LastName).ThenBy(u => u.FirstName);
+        return (_userAsc ? query : query.Reverse()).ToList();
+    }
+
+    private List<TeacherCourseDto> SortAssignmentItems(IReadOnlyList<TeacherCourseDto> items)
+    {
+        IEnumerable<TeacherCourseDto> query = _assignmentSort switch
+        {
+            "course" => items.OrderBy(a => a.CourseName),
+            _ => items.OrderBy(a => a.TeacherName),
+        };
+        return (_assignmentAsc ? query : query.Reverse()).ToList();
+    }
+
+    private static string Initials(string firstName, string lastName)
+    {
+        var f = firstName.Length > 0 ? firstName[..1] : "?";
+        var l = lastName.Length > 0 ? lastName[..1] : "";
+        return $"{f}{l}".ToUpperInvariant();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _assignments = await Mediator.Send(new GetTeacherCoursesListQuery());
+        _users = await Mediator.Send(new GetUsersListQuery());
+    }
+
+    private void OpenUserModal()
+    {
+        _userForm = new UserFormModel();
+        _userFormError = null;
+        _showUserModal = true;
+    }
+
+    private void OpenAssignmentModal()
+    {
+        _assignmentForm = new AssignmentFormModel();
+        _assignmentFormError = null;
+        _showAssignmentModal = true;
+    }
+
+    private async Task SaveUserAsync()
+    {
+        _userFormError = null;
+        _saving = true;
+        try
+        {
+            var command = new RegisterUserCommand(_userForm.Email, _userForm.Email, _userForm.Password, _userForm.FirstName, _userForm.LastName, _userForm.Role);
+            var result = await Mediator.Send(command);
+            if (!result.Succeeded)
+            {
+                _userFormError = string.Join(" ", result.Errors);
+                return;
+            }
+            _showUserModal = false;
+            await RefreshAsync();
+            Toast.ShowSuccess("User added", $"{_userForm.FirstName} {_userForm.LastName} can now sign in as a {_userForm.Role}.");
+        }
+        catch (ValidationException ex)
+        {
+            _userFormError = string.Join(" ", ex.Errors.SelectMany(e => e.Value));
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SaveAssignmentAsync()
+    {
+        _assignmentFormError = null;
+        _saving = true;
+        try
+        {
+            if (string.IsNullOrEmpty(_assignmentForm.TeacherUserId) || _assignmentForm.CourseId == 0 || _assignmentForm.AcademicYearId == 0 || _assignmentForm.ClassId == 0)
+            {
+                _assignmentFormError = "All fields are required.";
+                return;
+            }
+
+            var command = new AssignTeacherCourseCommand(_assignmentForm.TeacherUserId, _assignmentForm.CourseId, _assignmentForm.AcademicYearId, _assignmentForm.ClassId);
+            var result = await Mediator.Send(command);
+            if (!result.Succeeded)
+            {
+                _assignmentFormError = string.Join(" ", result.Errors);
+                return;
+            }
+            _showAssignmentModal = false;
+            await RefreshAsync();
+            Toast.ShowSuccess("Assignment saved", "The teacher has been assigned to that course.");
+        }
+        catch (ValidationException ex)
+        {
+            _assignmentFormError = string.Join(" ", ex.Errors.SelectMany(e => e.Value));
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private class UserFormModel
+    {
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string Role { get; set; } = "Teacher";
+    }
+
+    private class AssignmentFormModel
+    {
+        public string TeacherUserId { get; set; } = string.Empty;
+        public int CourseId { get; set; }
+        public int AcademicYearId { get; set; }
+        public int ClassId { get; set; }
+    }
+}

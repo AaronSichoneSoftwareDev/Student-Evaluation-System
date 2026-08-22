@@ -1,0 +1,80 @@
+@typeparam TItem
+
+<div class="card">
+    <div class="table-toolbar">
+        @if (Tabs is { Count: > 0 })
+        {
+            <div class="table-tabs">
+                @foreach (var tab in Tabs)
+                {
+                    var count = tab.Predicate is null ? Items.Count : Items.Count(tab.Predicate);
+                    <button type="button" class="table-tab @(tab.Key == _activeTab ? "active" : "")" @onclick="() => SetTab(tab.Key)">
+                        @tab.Label <span class="tab-count">@count</span>
+                    </button>
+                }
+            </div>
+        }
+        else
+        {
+            <h3 class="card-title" style="margin-bottom:0;">@Title</h3>
+        }
+
+        @if (SearchPredicate is not null)
+        {
+            <div class="table-search">
+                <i class="bi bi-search"></i>
+                <input type="search" placeholder="@SearchPlaceholder" value="@_searchText" @oninput="OnSearchInput" />
+            </div>
+        }
+    </div>
+
+    @ChildContent(FilteredItems)
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<TItem> Items { get; set; } = [];
+
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public List<TableTab<TItem>>? Tabs { get; set; }
+
+    [Parameter]
+    public Func<TItem, string, bool>? SearchPredicate { get; set; }
+
+    [Parameter]
+    public string SearchPlaceholder { get; set; } = "Search...";
+
+    [Parameter, EditorRequired]
+    public RenderFragment<IReadOnlyList<TItem>> ChildContent { get; set; } = default!;
+
+    private string _activeTab = "all";
+    private string _searchText = string.Empty;
+
+    private IReadOnlyList<TItem> FilteredItems
+    {
+        get
+        {
+            IEnumerable<TItem> result = Items;
+
+            var activeTabDefinition = Tabs?.FirstOrDefault(t => t.Key == _activeTab);
+            if (activeTabDefinition?.Predicate is not null)
+            {
+                result = result.Where(activeTabDefinition.Predicate);
+            }
+
+            if (!string.IsNullOrWhiteSpace(_searchText) && SearchPredicate is not null)
+            {
+                result = result.Where(item => SearchPredicate(item, _searchText));
+            }
+
+            return result.ToList();
+        }
+    }
+
+    private void SetTab(string key) => _activeTab = key;
+
+    private void OnSearchInput(ChangeEventArgs e) => _searchText = e.Value?.ToString() ?? string.Empty;
+}

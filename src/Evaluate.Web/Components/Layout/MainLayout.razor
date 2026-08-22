@@ -1,0 +1,106 @@
+@inherits LayoutComponentBase
+@using Evaluate.Application.Dashboard
+@inject IDashboardService DashboardService
+
+<div class="app-shell">
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a href="/" class="brand">
+                <span class="brand-mark">E</span>
+                <span class="brand-name">Evaluate</span>
+            </a>
+
+            <div class="topbar-search">
+                <input type="search" placeholder="Search students, evaluations..." />
+                <i class="bi bi-search"></i>
+            </div>
+
+            <div class="topbar-actions">
+                <button type="button" class="icon-btn" aria-label="Notifications">
+                    <i class="bi bi-bell-fill"></i>
+                    <span class="icon-badge">3</span>
+                </button>
+                <div class="avatar avatar-topbar">AT</div>
+            </div>
+
+            <div class="topbar-stats">
+                <div class="topbar-stat">
+                    <i class="bi bi-bar-chart-fill"></i>
+                    <div>
+                        <div class="topbar-stat-value">@(_headerStat1?.Value ?? "…")</div>
+                        <div class="topbar-stat-label">@(_headerStat1?.Label ?? "Evaluations Done")</div>
+                    </div>
+                </div>
+                <div class="topbar-stat">
+                    <i class="bi bi-graph-up"></i>
+                    <div>
+                        <div class="topbar-stat-value">@(_headerStat2?.Value ?? "…")</div>
+                        <div class="topbar-stat-label">@(_headerStat2?.Label ?? "Avg. Score")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav class="subnav">
+        <div class="subnav-inner">
+            <NavLink class="subnav-link" href="/" Match="NavLinkMatch.All">
+                <i class="bi bi-grid-1x2-fill"></i>
+                <span>Dashboard</span>
+            </NavLink>
+            <NavLink class="subnav-link" href="/students">
+                <i class="bi bi-people-fill"></i>
+                <span>Students</span>
+            </NavLink>
+            <NavLink class="subnav-link" href="/evaluations">
+                <i class="bi bi-clipboard-check-fill"></i>
+                <span>Evaluations</span>
+            </NavLink>
+            <NavLink class="subnav-link" href="/academic-setup">
+                <i class="bi bi-calendar3"></i>
+                <span>Academic Setup</span>
+            </NavLink>
+            <NavLink class="subnav-link" href="/courses">
+                <i class="bi bi-journal-bookmark-fill"></i>
+                <span>Courses</span>
+            </NavLink>
+            <NavLink class="subnav-link" href="/staff">
+                <i class="bi bi-person-badge-fill"></i>
+                <span>Staff</span>
+            </NavLink>
+            <NavLink class="subnav-link" href="/audit-log">
+                <i class="bi bi-shield-lock-fill"></i>
+                <span>Audit Log</span>
+            </NavLink>
+        </div>
+    </nav>
+
+    <main class="app-content">
+        @Body
+    </main>
+
+    <footer class="app-footer">
+        &copy; @DateTime.Now.Year - Evaluate &middot; Student Evaluation Dashboard
+    </footer>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+<ToastContainer />
+<ConfirmDialogHost />
+
+@code {
+    private HeaderStatDto? _headerStat1;
+    private HeaderStatDto? _headerStat2;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var dashboard = await DashboardService.GetDashboardAsync();
+        _headerStat1 = dashboard.HeaderStat1;
+        _headerStat2 = dashboard.HeaderStat2;
+    }
+}
