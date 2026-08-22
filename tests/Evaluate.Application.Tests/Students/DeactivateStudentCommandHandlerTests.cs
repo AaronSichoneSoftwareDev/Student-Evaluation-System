@@ -16,7 +16,7 @@ public class DeactivateStudentCommandHandlerTests
         context.Students.Add(student);
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new DeactivateStudentCommandHandler(context);
+        var handler = new DeactivateStudentCommandHandler(RepositoryFactory.Students(context), context);
         var result = await handler.Handle(new DeactivateStudentCommand(student.Id), CancellationToken.None);
 
         Assert.True(result.Succeeded);

@@ -28,7 +28,26 @@
         }
     </div>
 
-    @ChildContent(FilteredItems)
+    @ChildContent(PagedItems)
+
+    @if (TotalPages > 1)
+    {
+        <div class="table-pagination">
+            <span class="table-pagination-info">Showing @FirstItemIndex&ndash;@LastItemIndex of @SortedItems.Count</span>
+            <div class="table-pagination-controls">
+                <button type="button" class="page-btn" disabled="@(EffectivePage == 1)" @onclick="() => GoToPage(EffectivePage - 1)">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                @foreach (var pageNumber in PageNumbers)
+                {
+                    <button type="button" class="page-btn @(pageNumber == EffectivePage ? "active" : "")" @onclick="() => GoToPage(pageNumber)">@pageNumber</button>
+                }
+                <button type="button" class="page-btn" disabled="@(EffectivePage == TotalPages)" @onclick="() => GoToPage(EffectivePage + 1)">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
@@ -47,11 +66,21 @@
     [Parameter]
     public string SearchPlaceholder { get; set; } = "Search...";
 
+    /// <summary>Applied after tab/search filtering and before pagination. Pass the page's own
+    /// column-sort function here instead of sorting inside <see cref="ChildContent"/> — sorting
+    /// after paging would only reorder whichever page happens to be showing.</summary>
+    [Parameter]
+    public Func<IReadOnlyList<TItem>, IReadOnlyList<TItem>>? Sort { get; set; }
+
+    [Parameter]
+    public int PageSize { get; set; } = 10;
+
     [Parameter, EditorRequired]
     public RenderFragment<IReadOnlyList<TItem>> ChildContent { get; set; } = default!;
 
     private string _activeTab = "all";
     private string _searchText = string.Empty;
+    private int _currentPage = 1;
 
     private IReadOnlyList<TItem> FilteredItems
     {
@@ -74,7 +103,33 @@
         }
     }
 
-    private void SetTab(string key) => _activeTab = key;
+    private IReadOnlyList<TItem> SortedItems => Sort is null ? FilteredItems : Sort(FilteredItems);
 
-    private void OnSearchInput(ChangeEventArgs e) => _searchText = e.Value?.ToString() ?? string.Empty;
+    private int TotalPages => SortedItems.Count == 0 ? 1 : (int)Math.Ceiling(SortedItems.Count / (double)PageSize);
+
+    /// <summary>Clamped read of <see cref="_currentPage"/> — the stored page can fall out of
+    /// range after a filter/search shrinks the result set, without needing a mutating getter.</summary>
+    private int EffectivePage => Math.Clamp(_currentPage, 1, TotalPages);
+
+    private IReadOnlyList<TItem> PagedItems => SortedItems.Skip((EffectivePage - 1) * PageSize).Take(PageSize).ToList();
+
+    private int FirstItemIndex => SortedItems.Count == 0 ? 0 : ((EffectivePage - 1) * PageSize) + 1;
+
+    private int LastItemIndex => Math.Min(EffectivePage * PageSize, SortedItems.Count);
+
+    private IEnumerable<int> PageNumbers => Enumerable.Range(1, TotalPages);
+
+    private void SetTab(string key)
+    {
+        _activeTab = key;
+        _currentPage = 1;
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        _searchText = e.Value?.ToString() ?? string.Empty;
+        _currentPage = 1;
+    }
+
+    private void GoToPage(int page) => _currentPage = Math.Clamp(page, 1, TotalPages);
 }

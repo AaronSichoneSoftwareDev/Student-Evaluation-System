@@ -56,7 +56,9 @@ public class GetPendingEvaluationsListQueryHandlerTests
     public async Task Handle_WithNoEvaluationsYet_ReturnsAllEnrolledStudentsAsPending()
     {
         var (context, _, _, schoolClass, _, studentA, studentB) = await SeedBaseDataAsync();
-        var handler = new GetPendingEvaluationsListQueryHandler(context);
+        var handler = new GetPendingEvaluationsListQueryHandler(
+            RepositoryFactory.AcademicYears(context), RepositoryFactory.Terms(context), RepositoryFactory.TeacherCourses(context),
+            RepositoryFactory.Enrollments(context), RepositoryFactory.Evaluations(context), RepositoryFactory.Classes(context), RepositoryFactory.Students(context));
 
         var result = await handler.Handle(new GetPendingEvaluationsListQuery(schoolClass.Id, TeacherId), CancellationToken.None);
 
@@ -85,7 +87,9 @@ public class GetPendingEvaluationsListQueryHandlerTests
         context.Evaluations.Add(evaluation);
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new GetPendingEvaluationsListQueryHandler(context);
+        var handler = new GetPendingEvaluationsListQueryHandler(
+            RepositoryFactory.AcademicYears(context), RepositoryFactory.Terms(context), RepositoryFactory.TeacherCourses(context),
+            RepositoryFactory.Enrollments(context), RepositoryFactory.Evaluations(context), RepositoryFactory.Classes(context), RepositoryFactory.Students(context));
 
         var result = await handler.Handle(new GetPendingEvaluationsListQuery(schoolClass.Id, TeacherId), CancellationToken.None);
 
@@ -117,7 +121,9 @@ public class GetPendingEvaluationsListQueryHandlerTests
         context.Evaluations.Add(mathEval);
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new GetPendingEvaluationsListQueryHandler(context);
+        var handler = new GetPendingEvaluationsListQueryHandler(
+            RepositoryFactory.AcademicYears(context), RepositoryFactory.Terms(context), RepositoryFactory.TeacherCourses(context),
+            RepositoryFactory.Enrollments(context), RepositoryFactory.Evaluations(context), RepositoryFactory.Classes(context), RepositoryFactory.Students(context));
 
         var result = await handler.Handle(new GetPendingEvaluationsListQuery(schoolClass.Id, TeacherId), CancellationToken.None);
 
@@ -133,7 +139,9 @@ public class GetPendingEvaluationsListQueryHandlerTests
     public async Task Handle_WithTeacherNotAssignedToClass_ReturnsTeacherAssignedFalse()
     {
         var (context, _, _, schoolClass, _, _, _) = await SeedBaseDataAsync();
-        var handler = new GetPendingEvaluationsListQueryHandler(context);
+        var handler = new GetPendingEvaluationsListQueryHandler(
+            RepositoryFactory.AcademicYears(context), RepositoryFactory.Terms(context), RepositoryFactory.TeacherCourses(context),
+            RepositoryFactory.Enrollments(context), RepositoryFactory.Evaluations(context), RepositoryFactory.Classes(context), RepositoryFactory.Students(context));
 
         var result = await handler.Handle(new GetPendingEvaluationsListQuery(schoolClass.Id, "someone-else"), CancellationToken.None);
 
@@ -146,7 +154,9 @@ public class GetPendingEvaluationsListQueryHandlerTests
     public async Task Handle_WithNoCurrentAcademicYear_ReturnsHasCurrentTermFalse()
     {
         using var context = TestDbContext.Create();
-        var handler = new GetPendingEvaluationsListQueryHandler(context);
+        var handler = new GetPendingEvaluationsListQueryHandler(
+            RepositoryFactory.AcademicYears(context), RepositoryFactory.Terms(context), RepositoryFactory.TeacherCourses(context),
+            RepositoryFactory.Enrollments(context), RepositoryFactory.Evaluations(context), RepositoryFactory.Classes(context), RepositoryFactory.Students(context));
 
         var result = await handler.Handle(new GetPendingEvaluationsListQuery(1, TeacherId), CancellationToken.None);
 

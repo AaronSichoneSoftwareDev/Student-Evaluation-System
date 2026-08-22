@@ -116,7 +116,8 @@ else
         <DataTablePanel TItem="UserSummary" Items="_users"
                          Tabs="_userTabs"
                          SearchPredicate="@((u, q) => $"{u.FirstName} {u.LastName}".Contains(q, StringComparison.OrdinalIgnoreCase) || (u.Email ?? "").Contains(q, StringComparison.OrdinalIgnoreCase))"
-                         SearchPlaceholder="Search users...">
+                         SearchPlaceholder="Search users..."
+                         Sort="SortUserItems">
             <ChildContent Context="items">
                 <div class="table-scroll">
                     <table class="pro-table">
@@ -129,7 +130,7 @@ else
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var user in SortUserItems(items))
+                            @foreach (var user in items)
                             {
                                 <tr>
                                     <td>
@@ -156,7 +157,8 @@ else
         <DataTablePanel TItem="TeacherCourseDto" Items="_assignments"
                          Tabs="_assignmentTabs"
                          SearchPredicate="@((a, q) => (a.TeacherName ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) || a.CourseName.Contains(q, StringComparison.OrdinalIgnoreCase))"
-                         SearchPlaceholder="Search assignments...">
+                         SearchPlaceholder="Search assignments..."
+                         Sort="SortAssignmentItems">
             <ChildContent Context="items">
                 <div class="table-scroll">
                     <table class="pro-table">
@@ -168,7 +170,7 @@ else
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var assignment in SortAssignmentItems(items))
+                            @foreach (var assignment in items)
                             {
                                 <tr>
                                     <td>@(assignment.TeacherName ?? "Unknown")</td>

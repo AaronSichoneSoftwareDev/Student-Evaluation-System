@@ -1,23 +1,30 @@
 @page "/courses"
 @using Evaluate.Application.Courses.Queries.GetCoursesList
 @using Evaluate.Application.Courses.Commands.CreateCourse
+@using Evaluate.Application.Courses.Commands.UpdateCourse
+@using Evaluate.Application.Courses.Commands.ActivateCourse
+@using Evaluate.Application.Courses.Commands.DeactivateCourse
 @using Evaluate.Application.Topics.Queries.GetTopicsList
 @using Evaluate.Application.Topics.Commands.CreateTopic
 @using Evaluate.Application.Common.Exceptions
+@using Evaluate.Application.Common.Models
 @using MediatR
 @inject IMediator Mediator
 @inject ToastService Toast
+@inject ConfirmService Confirm
 
 <PageTitle>Courses - Evaluate</PageTitle>
 
 <PageHeader Title="Courses" Subtitle="Courses and the topics taught within them."
             AddOptions="_addOptions" OnRefresh="RefreshAsync" />
 
-<Modal IsVisible="_showCourseModal" Title="Add Course" Subtitle="Create a new course students can be evaluated in." OnClose="() => _showCourseModal = false">
+<Modal IsVisible="_showCourseModal" Title="@(_editingCourseId.HasValue ? "Edit Course" : "Add Course")"
+       Subtitle="@(_editingCourseId.HasValue ? "Update this course's details." : "Create a new course students can be evaluated in.")"
+       OnClose="() => _showCourseModal = false">
     <div class="form-row">
         <div class="form-group">
             <label class="form-label">Course Code</label>
-            <input class="form-control" @bind="_courseForm.CourseCode" placeholder="HIST01" />
+            <input class="form-control" @bind="_courseForm.CourseCode" placeholder="HIST01" disabled="@_editingCourseId.HasValue" />
         </div>
         <div class="form-group">
             <label class="form-label">Course Name</label>
@@ -34,7 +41,9 @@
     }
     <div class="form-actions">
         <button type="button" class="btn-secondary" @onclick="() => _showCourseModal = false">Cancel</button>
-        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveCourseAsync">@(_saving ? "Saving..." : "Save Course")</button>
+        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveCourseAsync">
+            @(_saving ? "Saving..." : _editingCourseId.HasValue ? "Save Changes" : "Save Course")
+        </button>
     </div>
 </Modal>
 
@@ -83,7 +92,8 @@ else
         <DataTablePanel TItem="CourseDto" Items="_courses"
                          Tabs="_courseTabs"
                          SearchPredicate="@((c, q) => c.CourseName.Contains(q, StringComparison.OrdinalIgnoreCase) || c.CourseCode.Contains(q, StringComparison.OrdinalIgnoreCase))"
-                         SearchPlaceholder="Search courses...">
+                         SearchPlaceholder="Search courses..."
+                         Sort="SortCourseItems">
             <ChildContent Context="items">
                 <div class="table-scroll">
                     <table class="pro-table">
@@ -92,20 +102,40 @@ else
                                 <SortableHeader Label="Code" Column="code" CurrentColumn="_courseSort" Ascending="_courseAsc" OnSort="SortCourses" />
                                 <SortableHeader Label="Name" Column="name" CurrentColumn="_courseSort" Ascending="_courseAsc" OnSort="SortCourses" />
                                 <th>Status</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var course in SortCourseItems(items))
+                            @foreach (var course in items)
                             {
                                 <tr>
                                     <td>@course.CourseCode</td>
                                     <td>@course.CourseName</td>
                                     <td><span class="status-pill @(course.IsActive ? "pill-green" : "pill-red")">@(course.IsActive ? "Active" : "Inactive")</span></td>
+                                    <td>
+                                        <div class="action-icons">
+                                            <button type="button" class="icon-btn-circle" title="Edit course" @onclick="() => OpenEditCourseModal(course)">
+                                                <i class="bi bi-pencil-fill"></i>
+                                            </button>
+                                            @if (course.IsActive)
+                                            {
+                                                <button type="button" class="icon-btn-circle icon-btn-circle-danger" title="Make inactive" @onclick="() => DeactivateCourseAsync(course)">
+                                                    <i class="bi bi-toggle-on"></i>
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button type="button" class="icon-btn-circle" title="Make active" @onclick="() => ActivateCourseAsync(course)">
+                                                    <i class="bi bi-toggle-off"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
                                 </tr>
                             }
                             @if (items.Count == 0)
                             {
-                                <tr class="empty-row"><td colspan="3">No courses match.</td></tr>
+                                <tr class="empty-row"><td colspan="4">No courses match.</td></tr>
                             }
                         </tbody>
                     </table>
@@ -116,7 +146,8 @@ else
         <DataTablePanel TItem="TopicDto" Items="_topics"
                          Title="Topics"
                          SearchPredicate="@((t, q) => t.TopicName.Contains(q, StringComparison.OrdinalIgnoreCase))"
-                         SearchPlaceholder="Search topics...">
+                         SearchPlaceholder="Search topics..."
+                         Sort="SortTopicItems">
             <ChildContent Context="items">
                 <div class="table-scroll">
                     <table class="pro-table">
@@ -128,7 +159,7 @@ else
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var topic in SortTopicItems(items))
+                            @foreach (var topic in items)
                             {
                                 <tr>
                                     <td>@topic.TopicOrder</td>
@@ -163,6 +194,7 @@ else
     private bool _showCourseModal;
     private bool _showTopicModal;
     private bool _saving;
+    private int? _editingCourseId;
     private string? _courseFormError;
     private string? _topicFormError;
     private CourseFormModel _courseForm = new();
@@ -229,7 +261,21 @@ else
 
     private void OpenCourseModal()
     {
+        _editingCourseId = null;
         _courseForm = new CourseFormModel();
+        _courseFormError = null;
+        _showCourseModal = true;
+    }
+
+    private void OpenEditCourseModal(CourseDto course)
+    {
+        _editingCourseId = course.Id;
+        _courseForm = new CourseFormModel
+        {
+            CourseCode = course.CourseCode,
+            CourseName = course.CourseName,
+            Description = course.Description,
+        };
         _courseFormError = null;
         _showCourseModal = true;
     }
@@ -247,16 +293,24 @@ else
         _saving = true;
         try
         {
-            var command = new CreateCourseCommand(_courseForm.CourseCode, _courseForm.CourseName, string.IsNullOrWhiteSpace(_courseForm.Description) ? null : _courseForm.Description);
-            var result = await Mediator.Send(command);
+            var description = string.IsNullOrWhiteSpace(_courseForm.Description) ? null : _courseForm.Description;
+
+            Result result = _editingCourseId.HasValue
+                ? await Mediator.Send(new UpdateCourseCommand(_editingCourseId.Value, _courseForm.CourseName, description))
+                : await Mediator.Send(new CreateCourseCommand(_courseForm.CourseCode, _courseForm.CourseName, description));
+
             if (!result.Succeeded)
             {
                 _courseFormError = string.Join(" ", result.Errors);
                 return;
             }
+
             _showCourseModal = false;
+            var wasEditing = _editingCourseId.HasValue;
             await RefreshAsync();
-            Toast.ShowSuccess("Course added", $"{_courseForm.CourseName} has been created.");
+            Toast.ShowSuccess(
+                wasEditing ? "Course updated" : "Course added",
+                wasEditing ? $"{_courseForm.CourseName}'s details were saved." : $"{_courseForm.CourseName} has been created.");
         }
         catch (ValidationException ex)
         {
@@ -265,6 +319,44 @@ else
         finally
         {
             _saving = false;
+        }
+    }
+
+    private async Task DeactivateCourseAsync(CourseDto course)
+    {
+        var confirmed = await Confirm.ConfirmAsync(
+            "Make this course inactive?",
+            $"{course.CourseName} will be marked inactive. This can be reversed later.",
+            confirmText: "Make Inactive");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var result = await Mediator.Send(new DeactivateCourseCommand(course.Id));
+        if (result.Succeeded)
+        {
+            Toast.ShowSuccess("Course deactivated", $"{course.CourseName} is now inactive.");
+            await RefreshAsync();
+        }
+        else
+        {
+            Toast.ShowError("Couldn't deactivate course", string.Join(" ", result.Errors));
+        }
+    }
+
+    private async Task ActivateCourseAsync(CourseDto course)
+    {
+        var result = await Mediator.Send(new ActivateCourseCommand(course.Id));
+        if (result.Succeeded)
+        {
+            Toast.ShowSuccess("Course activated", $"{course.CourseName} is now active.");
+            await RefreshAsync();
+        }
+        else
+        {
+            Toast.ShowError("Couldn't activate course", string.Join(" ", result.Errors));
         }
     }
 

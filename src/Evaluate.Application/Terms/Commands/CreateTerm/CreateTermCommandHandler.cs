@@ -1,25 +1,23 @@
+using Evaluate.Application.AcademicYears;
 using Evaluate.Application.Common.Exceptions;
 using Evaluate.Application.Common.Interfaces;
 using Evaluate.Application.Common.Models;
-using MediatR;
-using Microsoft.EntityFrameworkCore;
 using TermEntity = Evaluate.Domain.Entities.Academic.Term;
+using MediatR;
 
 namespace Evaluate.Application.Terms.Commands.CreateTerm;
 
-public class CreateTermCommandHandler(IApplicationDbContext context) : IRequestHandler<CreateTermCommand, Result<int>>
+public class CreateTermCommandHandler(ITermRepository terms, IAcademicYearRepository academicYears, IUnitOfWork unitOfWork) : IRequestHandler<CreateTermCommand, Result<int>>
 {
     public async Task<Result<int>> Handle(CreateTermCommand request, CancellationToken cancellationToken)
     {
-        var academicYearExists = await context.AcademicYears.AnyAsync(y => y.Id == request.AcademicYearId, cancellationToken);
+        var academicYearExists = await academicYears.ExistsAsync(request.AcademicYearId, cancellationToken);
         if (!academicYearExists)
         {
             throw new NotFoundException(nameof(Domain.Entities.Academic.AcademicYear), request.AcademicYearId);
         }
 
-        var duplicateNumber = await context.Terms.AnyAsync(
-            t => t.AcademicYearId == request.AcademicYearId && t.TermNumber == request.TermNumber,
-            cancellationToken);
+        var duplicateNumber = await terms.ExistsAsync(request.AcademicYearId, request.TermNumber, cancellationToken);
         if (duplicateNumber)
         {
             return Result<int>.Failure($"Term {request.TermNumber} already exists for this academic year.");
@@ -27,8 +25,8 @@ public class CreateTermCommandHandler(IApplicationDbContext context) : IRequestH
 
         var term = TermEntity.Create(request.AcademicYearId, request.TermName, request.TermNumber, request.StartDate, request.EndDate);
 
-        context.Terms.Add(term);
-        await context.SaveChangesAsync(cancellationToken);
+        terms.Add(term);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<int>.Success(term.Id);
     }

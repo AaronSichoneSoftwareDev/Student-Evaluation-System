@@ -1,10 +1,10 @@
 @page "/evaluations"
 @using Evaluate.Application.Evaluations.Queries.GetPendingEvaluationsList
 @using Evaluate.Application.Evaluations.Commands.CreateEvaluation
+@using Evaluate.Application.TeacherCourses.Queries.GetTeachersForClass
 @using Evaluate.Application.Topics.Queries.GetTopicsList
 @using Evaluate.Application.Classes.Queries.GetClassesList
 @using Evaluate.Application.Identity
-@using Evaluate.Application.Identity.Queries.GetUsersList
 @using Evaluate.Application.Common.Exceptions
 @using MediatR
 @inject IMediator Mediator
@@ -12,11 +12,12 @@
 
 <PageTitle>Evaluations - Evaluate</PageTitle>
 
-<PageHeader Title="Evaluations" Subtitle="Students still pending evaluation for the current term, by teacher and class."
+<PageHeader Title="Evaluations" Subtitle="Students still pending evaluation for the current term, by class and teacher."
             OnRefresh="RefreshFiltersAsync" />
 
 <Modal IsVisible="_showEvaluateModal" Title="@($"Evaluate {_evaluatingStudent?.StudentName}")"
        Subtitle="@_evaluatingStudent?.TermName"
+       Size="ModalSize.Large"
        OnClose="CloseEvaluateModal">
     <div class="form-group">
         <label class="form-label">Subject</label>
@@ -43,16 +44,28 @@
     }
     else
     {
+        <div class="score-meter">
+            <div class="score-meter-header">
+                <span class="score-meter-label">Running Average</span>
+                <span class="score-meter-value @ScoreBandClass">@RunningAveragePercent.ToString("0.#")%</span>
+            </div>
+            <div class="score-meter-track">
+                <div class="score-meter-fill @ScoreBandClass" style="width:@(RunningAveragePercent.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%;"></div>
+            </div>
+            <span class="score-meter-status @ScoreBandClass">@ScoreStatusLabel</span>
+        </div>
+
         @foreach (var topicForm in _topicForms)
         {
-            <div class="form-group" style="border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:14px;">
+            <div class="form-group" style="border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:16px;">
                 <label class="form-label">@topicForm.TopicName</label>
                 <div class="form-row">
-                    <div class="form-group" style="flex:0 0 110px;margin-bottom:0;">
-                        <input type="number" min="0" max="100" class="form-control" placeholder="Score" @bind="topicForm.Score" />
+                    <div class="form-group" style="flex:0 0 120px;margin-bottom:0;">
+                        <input type="number" min="0" max="100" class="form-control" placeholder="Score"
+                               @bind="topicForm.Score" @bind:event="oninput" />
                     </div>
-                    <div class="form-group" style="margin-bottom:0;">
-                        <input class="form-control" placeholder="Comment for this topic" @bind="topicForm.Comment" />
+                    <div class="form-group" style="flex:1;margin-bottom:0;">
+                        <textarea class="form-control" rows="3" placeholder="Comment for this topic — strengths, weaknesses, and how to improve." @bind="topicForm.Comment"></textarea>
                     </div>
                 </div>
             </div>
@@ -60,7 +73,7 @@
 
         <div class="form-group">
             <label class="form-label">Overall Comments (optional)</label>
-            <textarea class="form-control" rows="2" @bind="_overallComments"></textarea>
+            <textarea class="form-control" rows="4" placeholder="Overall summary for this subject this term..." @bind="_overallComments"></textarea>
         </div>
 
         @if (_evaluateError is not null)
@@ -77,7 +90,7 @@
     }
 </Modal>
 
-@if (_classes is null || _teachers is null)
+@if (_classes is null)
 {
     <p>Loading...</p>
 }
@@ -88,18 +101,8 @@ else
             <h3 class="card-title">Filters</h3>
             <div class="filter-row">
                 <div>
-                    <label class="filter-label" for="teacherSelect">Teacher</label>
-                    <select id="teacherSelect" class="filter-select" @bind="_selectedTeacherId" @bind:after="LoadPendingAsync">
-                        <option value="">Select a teacher...</option>
-                        @foreach (var teacher in _teachers)
-                        {
-                            <option value="@teacher.Id">@teacher.FirstName @teacher.LastName</option>
-                        }
-                    </select>
-                </div>
-                <div>
                     <label class="filter-label" for="classSelect">Class</label>
-                    <select id="classSelect" class="filter-select" @bind="_selectedClassId" @bind:after="LoadPendingAsync">
+                    <select id="classSelect" class="filter-select" @bind="_selectedClassId" @bind:after="OnClassSelectedAsync">
                         <option value="0">Select a class...</option>
                         @foreach (var schoolClass in _classes)
                         {
@@ -107,13 +110,39 @@ else
                         }
                     </select>
                 </div>
+                <div>
+                    <label class="filter-label" for="teacherSelect">Teacher</label>
+                    <select id="teacherSelect" class="filter-select" @bind="_selectedTeacherId" @bind:after="LoadPendingAsync" disabled="@(_selectedClassId == 0)">
+                        <option value="">Select a teacher...</option>
+                        @foreach (var teacher in _teachers ?? [])
+                        {
+                            <option value="@teacher.Id">@teacher.FirstName @teacher.LastName</option>
+                        }
+                    </select>
+                </div>
             </div>
         </div>
 
-        @if (string.IsNullOrEmpty(_selectedTeacherId) || _selectedClassId == 0)
+        @if (_selectedClassId == 0)
         {
             <div class="card">
-                <p style="color:var(--muted);font-size:0.85rem;margin:0;">Choose a teacher and a class above to see who still needs evaluating.</p>
+                <p style="color:var(--muted);font-size:0.85rem;margin:0;">Choose a class to see who teaches it.</p>
+            </div>
+        }
+        else if (_teachers is null)
+        {
+            <div class="card"><p style="margin:0;">Loading teachers...</p></div>
+        }
+        else if (_teachers.Count == 0)
+        {
+            <div class="card">
+                <p style="color:var(--muted);font-size:0.85rem;margin:0;">No teachers are assigned to this class for the current academic year.</p>
+            </div>
+        }
+        else if (string.IsNullOrEmpty(_selectedTeacherId))
+        {
+            <div class="card">
+                <p style="color:var(--muted);font-size:0.85rem;margin:0;">Choose a teacher above to see who still needs evaluating.</p>
             </div>
         }
         else if (_result is null)
@@ -143,7 +172,8 @@ else
             <DataTablePanel TItem="PendingEvaluationDto" Items="_result.Students"
                              Title="@($"Pending Evaluations — {string.Join(", ", _result.AvailableCourses.Select(c => c.CourseName))}, {_result.TermName} ({_result.Students.Count})")"
                              SearchPredicate="@((s, q) => s.StudentName.Contains(q, StringComparison.OrdinalIgnoreCase) || s.StudentNumber.Contains(q, StringComparison.OrdinalIgnoreCase))"
-                             SearchPlaceholder="Search students...">
+                             SearchPlaceholder="Search students..."
+                             Sort="SortItems">
                 <ChildContent Context="items">
                     <div class="table-scroll">
                         <table class="pro-table">
@@ -157,7 +187,7 @@ else
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var student in SortItems(items))
+                                @foreach (var student in items)
                                 {
                                     <tr>
                                         <td>@student.StudentNumber</td>
@@ -210,14 +240,47 @@ else
     private List<TopicScoreFormModel> _topicForms = [];
     private string? _overallComments;
 
+    // Live preview only — the authoritative percentage/grade is computed server-side by
+    // IGradingStrategy when the evaluation is submitted. Kept in sync with that same
+    // straight-average logic and the same passing threshold (60%) so this never disagrees
+    // with what actually gets saved.
+    private decimal RunningAveragePercent => _topicForms.Count == 0 ? 0 : Math.Round(_topicForms.Average(t => t.Score), 1);
+
+    private string ScoreBandClass => RunningAveragePercent switch
+    {
+        >= 80 => "score-band-strong",
+        >= 60 => "score-band-pass",
+        _ => "score-band-fail",
+    };
+
+    private string ScoreStatusLabel => RunningAveragePercent switch
+    {
+        >= 80 => "Strong Pass",
+        >= 60 => "Passing",
+        _ => "Not Passing",
+    };
+
     protected override async Task OnInitializedAsync() => await RefreshFiltersAsync();
 
     private async Task RefreshFiltersAsync()
     {
         _classes = await Mediator.Send(new GetClassesListQuery());
-        var users = await Mediator.Send(new GetUsersListQuery());
-        _teachers = users.Where(u => u.Roles.Contains("Teacher")).ToList();
+
+        if (_selectedClassId != 0)
+        {
+            _teachers = await Mediator.Send(new GetTeachersForClassQuery(_selectedClassId));
+        }
+
         await LoadPendingAsync();
+    }
+
+    /// <summary>Bound to the class dropdown itself — unlike <see cref="RefreshFiltersAsync"/>,
+    /// changing the class invalidates whatever teacher was previously selected.</summary>
+    private async Task OnClassSelectedAsync()
+    {
+        _selectedTeacherId = string.Empty;
+        _result = null;
+        _teachers = _selectedClassId == 0 ? null : await Mediator.Send(new GetTeachersForClassQuery(_selectedClassId));
     }
 
     private async Task LoadPendingAsync()

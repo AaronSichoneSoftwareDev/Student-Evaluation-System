@@ -116,7 +116,8 @@ else
         <DataTablePanel TItem="AcademicYearDto" Items="_years"
                          Tabs="_yearTabs"
                          SearchPredicate="@((y, q) => y.YearName.Contains(q, StringComparison.OrdinalIgnoreCase))"
-                         SearchPlaceholder="Search years...">
+                         SearchPlaceholder="Search years..."
+                         Sort="SortYearItems">
             <ChildContent Context="items">
                 <div class="table-scroll">
                     <table class="pro-table">
@@ -129,7 +130,7 @@ else
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var year in SortYearItems(items))
+                            @foreach (var year in items)
                             {
                                 <tr>
                                     <td>@year.YearName</td>
@@ -160,7 +161,8 @@ else
         <DataTablePanel TItem="TermDto" Items="_terms"
                          Title="Terms"
                          SearchPredicate="@((t, q) => t.TermName.Contains(q, StringComparison.OrdinalIgnoreCase))"
-                         SearchPlaceholder="Search terms...">
+                         SearchPlaceholder="Search terms..."
+                         Sort="SortTermItems">
             <ChildContent Context="items">
                 <div class="table-scroll">
                     <table class="pro-table">
@@ -173,7 +175,7 @@ else
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var term in SortTermItems(items))
+                            @foreach (var term in items)
                             {
                                 <tr>
                                     <td>@term.TermName</td>
@@ -195,7 +197,8 @@ else
         <DataTablePanel TItem="ClassDto" Items="_classes"
                          Tabs="_classTabs"
                          SearchPredicate="@((c, q) => c.ClassName.Contains(q, StringComparison.OrdinalIgnoreCase) || c.GradeLevel.Contains(q, StringComparison.OrdinalIgnoreCase))"
-                         SearchPlaceholder="Search classes...">
+                         SearchPlaceholder="Search classes..."
+                         Sort="SortClassItems">
             <ChildContent Context="items">
                 <div class="table-scroll">
                     <table class="pro-table">
@@ -208,7 +211,7 @@ else
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var schoolClass in SortClassItems(items))
+                            @foreach (var schoolClass in items)
                             {
                                 <tr>
                                     <td>@schoolClass.ClassName</td>

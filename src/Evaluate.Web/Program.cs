@@ -54,12 +54,15 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.MapGet("/api/report-cards/{studentId:int}/current", async (int studentId, IMediator mediator) =>
+app.MapGet("/api/report-cards/{studentId:int}/current", async (int studentId, IMediator mediator, HttpContext httpContext) =>
 {
     try
     {
         var pdfBytes = await mediator.Send(new GetStudentReportCardPdfQuery(studentId));
-        return Results.File(pdfBytes, "application/pdf", $"report-card-{studentId}.pdf");
+        // "inline" opens the PDF in the browser tab as a preview; the browser's own viewer
+        // still lets the user save it from there under the suggested filename.
+        httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"report-card-{studentId}.pdf\"";
+        return Results.File(pdfBytes, "application/pdf");
     }
     catch (ReportCardNotReadyException ex)
     {

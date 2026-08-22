@@ -17,7 +17,8 @@ else
     <DataTablePanel TItem="AuditLogDto" Items="_logs"
                      Tabs="_logTabs"
                      SearchPredicate="@((l, q) => l.TableName.Contains(q, StringComparison.OrdinalIgnoreCase) || (l.RecordId ?? "").Contains(q, StringComparison.OrdinalIgnoreCase))"
-                     SearchPlaceholder="Search audit log...">
+                     SearchPlaceholder="Search audit log..."
+                     Sort="SortItems">
         <ChildContent Context="items">
             <div class="table-scroll">
                 <table class="pro-table">
@@ -31,7 +32,7 @@ else
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var log in SortItems(items))
+                        @foreach (var log in items)
                         {
                             <tr>
                                 <td>@log.Timestamp.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</td>

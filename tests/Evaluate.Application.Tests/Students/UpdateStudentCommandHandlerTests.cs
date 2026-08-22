@@ -19,7 +19,8 @@ public class UpdateStudentCommandHandlerTests
         context.Students.Add(student);
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new UpdateStudentCommandHandler(context);
+        var handler = new UpdateStudentCommandHandler(
+            RepositoryFactory.Students(context), RepositoryFactory.AcademicYears(context), RepositoryFactory.Enrollments(context), context);
         var command = new UpdateStudentCommand(student.Id, "Peter", "Banda-Mwansa", new DateOnly(2013, 3, 14), Gender.Male, Email: "peter@example.com");
 
         var result = await handler.Handle(command, CancellationToken.None);
@@ -44,7 +45,8 @@ public class UpdateStudentCommandHandlerTests
         context.Students.Add(student);
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new UpdateStudentCommandHandler(context);
+        var handler = new UpdateStudentCommandHandler(
+            RepositoryFactory.Students(context), RepositoryFactory.AcademicYears(context), RepositoryFactory.Enrollments(context), context);
         var command = new UpdateStudentCommand(student.Id, "Peter", "Banda", new DateOnly(2013, 3, 14), Gender.Male, ClassId: classA.Id);
 
         var result = await handler.Handle(command, CancellationToken.None);
@@ -73,7 +75,8 @@ public class UpdateStudentCommandHandlerTests
         context.StudentEnrollments.Add(StudentEnrollmentEntity.Enroll(student.Id, year.Id, classA.Id, new DateOnly(2026, 1, 12)));
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new UpdateStudentCommandHandler(context);
+        var handler = new UpdateStudentCommandHandler(
+            RepositoryFactory.Students(context), RepositoryFactory.AcademicYears(context), RepositoryFactory.Enrollments(context), context);
         var command = new UpdateStudentCommand(student.Id, "Peter", "Banda", new DateOnly(2013, 3, 14), Gender.Male, ClassId: classB.Id);
 
         await handler.Handle(command, CancellationToken.None);

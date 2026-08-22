@@ -10,12 +10,13 @@ using EvaluationResultEntity = Evaluate.Domain.Entities.Evaluations.EvaluationRe
 namespace Evaluate.Application.Common.Interfaces;
 
 /// <summary>
-/// Application's own view of the persistence layer (Dependency Inversion): it depends on this
-/// interface, not on EF Core or <c>EvaluateDbContext</c> directly. Doubles as the Unit of Work
-/// via <see cref="SaveChangesAsync"/>, so a separate generic repository layer on top of EF Core's
-/// own repository/UoW implementation would just be redundant ceremony.
+/// EF Core's own view of the persistence layer. Application code no longer depends on this
+/// directly — each aggregate has its own repository interface (<c>IStudentRepository</c>,
+/// <c>IEvaluationRepository</c>, etc.) that command/query handlers depend on instead. This
+/// interface is now consumed only by those repository implementations (in Infrastructure) and
+/// by <see cref="IUnitOfWork"/>, which every repository shares to commit changes together.
 /// </summary>
-public interface IApplicationDbContext
+public interface IApplicationDbContext : IUnitOfWork
 {
     DbSet<AcademicYear> AcademicYears { get; }
     DbSet<Term> Terms { get; }
@@ -29,6 +30,4 @@ public interface IApplicationDbContext
     DbSet<EvaluationEntity> Evaluations { get; }
     DbSet<EvaluationResultEntity> EvaluationResults { get; }
     DbSet<AuditLog> AuditLogs { get; }
-
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

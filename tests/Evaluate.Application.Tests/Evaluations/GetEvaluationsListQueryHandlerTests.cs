@@ -23,7 +23,7 @@ public class GetEvaluationsListQueryHandlerTests
         context.Evaluations.AddRange(evaluationForA, evaluationForB);
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new GetEvaluationsListQueryHandler(context);
+        var handler = new GetEvaluationsListQueryHandler(RepositoryFactory.Evaluations(context), RepositoryFactory.Students(context), RepositoryFactory.Courses(context));
 
         var result = await handler.Handle(new GetEvaluationsListQuery(StudentId: studentA.Id), CancellationToken.None);
 
@@ -45,7 +45,7 @@ public class GetEvaluationsListQueryHandlerTests
             EvaluationEntity.Create(student.Id, "teacher-1", 2, 1, 1, new DateOnly(2026, 3, 2)));
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new GetEvaluationsListQueryHandler(context);
+        var handler = new GetEvaluationsListQueryHandler(RepositoryFactory.Evaluations(context), RepositoryFactory.Students(context), RepositoryFactory.Courses(context));
 
         var result = await handler.Handle(new GetEvaluationsListQuery(), CancellationToken.None);
 

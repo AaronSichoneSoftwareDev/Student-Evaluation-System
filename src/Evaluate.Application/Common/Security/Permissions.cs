@@ -14,7 +14,7 @@ public static class Permissions
     public static class Classes { public const string Create = "Classes.Create"; public const string View = "Classes.View"; }
     public static class Students { public const string Create = "Students.Create"; public const string Edit = "Students.Edit"; public const string View = "Students.View"; }
     public static class Enrollments { public const string Create = "Enrollments.Create"; public const string View = "Enrollments.View"; }
-    public static class Courses { public const string Create = "Courses.Create"; public const string View = "Courses.View"; }
+    public static class Courses { public const string Create = "Courses.Create"; public const string Edit = "Courses.Edit"; public const string View = "Courses.View"; }
     public static class Topics { public const string Create = "Topics.Create"; public const string View = "Topics.View"; }
     public static class TeacherCourses { public const string Create = "TeacherCourses.Create"; public const string View = "TeacherCourses.View"; }
     public static class EvaluationCriteria { public const string Create = "EvaluationCriteria.Create"; public const string View = "EvaluationCriteria.View"; }
@@ -32,7 +32,7 @@ public static class Permissions
         Classes.Create, Classes.View,
         Students.Create, Students.Edit, Students.View,
         Enrollments.Create, Enrollments.View,
-        Courses.Create, Courses.View,
+        Courses.Create, Courses.Edit, Courses.View,
         Topics.Create, Topics.View,
         TeacherCourses.Create, TeacherCourses.View,
         EvaluationCriteria.Create, EvaluationCriteria.View,

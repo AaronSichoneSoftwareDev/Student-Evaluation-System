@@ -3,6 +3,7 @@ using Evaluate.Application.Common.Models;
 using Evaluate.Application.Common.Security;
 using Evaluate.Application.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace Evaluate.Infrastructure.Identity;
 
@@ -19,6 +20,25 @@ public class IdentityService(UserManager<ApplicationUser> userManager, RoleManag
         var summaries = new List<UserSummary>();
 
         foreach (var user in userManager.Users.ToList())
+        {
+            var roles = await userManager.GetRolesAsync(user);
+            summaries.Add(new UserSummary(user.Id, user.UserName ?? string.Empty, user.Email, user.FirstName, user.LastName, user.IsActive, roles.ToList()));
+        }
+
+        return summaries;
+    }
+
+    public async Task<List<UserSummary>> GetUsersByIdsAsync(IReadOnlyList<string> userIds, CancellationToken cancellationToken = default)
+    {
+        if (userIds.Count == 0)
+        {
+            return [];
+        }
+
+        var users = await userManager.Users.Where(u => userIds.Contains(u.Id)).ToListAsync(cancellationToken);
+
+        var summaries = new List<UserSummary>(users.Count);
+        foreach (var user in users)
         {
             var roles = await userManager.GetRolesAsync(user);
             summaries.Add(new UserSummary(user.Id, user.UserName ?? string.Empty, user.Email, user.FirstName, user.LastName, user.IsActive, roles.ToList()));

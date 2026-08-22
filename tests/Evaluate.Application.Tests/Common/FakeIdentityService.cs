@@ -13,6 +13,11 @@ public class FakeIdentityService : IIdentityService
 
     public Task<List<UserSummary>> GetUsersAsync(CancellationToken cancellationToken = default) => Task.FromResult(new List<UserSummary>());
 
+    /// <summary>Synthesizes a summary per id (id doubles as the name) rather than returning
+    /// empty — good enough for tests that only need to assert on which ids came back.</summary>
+    public Task<List<UserSummary>> GetUsersByIdsAsync(IReadOnlyList<string> userIds, CancellationToken cancellationToken = default) =>
+        Task.FromResult(userIds.Select(id => new UserSummary(id, id, null, id, id, true, (IReadOnlyList<string>)["Teacher"])).ToList());
+
     public Task<bool> IsInRoleAsync(string userId, string role, CancellationToken cancellationToken = default) => Task.FromResult(false);
 
     public Task<bool> AuthorizeAsync(string userId, string policyName, CancellationToken cancellationToken = default) => Task.FromResult(false);

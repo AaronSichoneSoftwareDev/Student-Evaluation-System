@@ -1,13 +1,19 @@
 using Evaluate.Application.Common.Exceptions;
 using Evaluate.Application.Common.Interfaces;
 using Evaluate.Application.Common.Models;
+using Evaluate.Application.Topics;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using EvaluationEntity = Evaluate.Domain.Entities.Evaluations.Evaluation;
+using IStudentRepository = Evaluate.Application.Students.IStudentRepository;
 
 namespace Evaluate.Application.Evaluations.Commands.CreateEvaluation;
 
-public class CreateEvaluationCommandHandler(IApplicationDbContext context, IGradingStrategy gradingStrategy) : IRequestHandler<CreateEvaluationCommand, Result<int>>
+public class CreateEvaluationCommandHandler(
+    IEvaluationRepository evaluations,
+    IStudentRepository students,
+    ITopicRepository topics,
+    IGradingStrategy gradingStrategy,
+    IUnitOfWork unitOfWork) : IRequestHandler<CreateEvaluationCommand, Result<int>>
 {
     public async Task<Result<int>> Handle(CreateEvaluationCommand request, CancellationToken cancellationToken)
     {
@@ -16,22 +22,20 @@ public class CreateEvaluationCommandHandler(IApplicationDbContext context, IGrad
             return Result<int>.Failure("At least one topic score is required.");
         }
 
-        var studentExists = await context.Students.AnyAsync(s => s.Id == request.StudentId, cancellationToken);
+        var studentExists = await students.ExistsAsync(request.StudentId, cancellationToken);
         if (!studentExists)
         {
             throw new NotFoundException(nameof(Domain.Entities.People.Student), request.StudentId);
         }
 
         var topicIds = request.TopicScores.Select(s => s.TopicId).ToList();
-        var validTopicCount = await context.Topics.CountAsync(t => topicIds.Contains(t.Id) && t.CourseId == request.CourseId, cancellationToken);
+        var validTopicCount = await topics.CountValidForCourseAsync(topicIds, request.CourseId, cancellationToken);
         if (validTopicCount != topicIds.Distinct().Count())
         {
             return Result<int>.Failure("One or more topics do not belong to the selected course.");
         }
 
-        var alreadyEvaluated = await context.Evaluations.AnyAsync(
-            e => e.StudentId == request.StudentId && e.CourseId == request.CourseId && e.TermId == request.TermId,
-            cancellationToken);
+        var alreadyEvaluated = await evaluations.ExistsAsync(request.StudentId, request.CourseId, request.TermId, cancellationToken);
         if (alreadyEvaluated)
         {
             return Result<int>.Failure("This student has already been evaluated for this course this term.");
@@ -58,8 +62,8 @@ public class CreateEvaluationCommandHandler(IApplicationDbContext context, IGrad
 
         evaluation.Finalize(finalPercentage, finalGrade);
 
-        context.Evaluations.Add(evaluation);
-        await context.SaveChangesAsync(cancellationToken);
+        evaluations.Add(evaluation);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<int>.Success(evaluation.Id);
     }

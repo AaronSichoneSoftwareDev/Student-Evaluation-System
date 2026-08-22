@@ -33,7 +33,8 @@ public class CreateEvaluationCommandHandlerTests
     public async Task Handle_WithValidTopicScores_CreatesFinalizedEvaluation()
     {
         var (context, student, course, algebra, fractions) = await SeedAsync();
-        var handler = new CreateEvaluationCommandHandler(context, new AverageGradingStrategy());
+        var handler = new CreateEvaluationCommandHandler(
+            RepositoryFactory.Evaluations(context), RepositoryFactory.Students(context), RepositoryFactory.Topics(context), new AverageGradingStrategy(), context);
 
         var command = new CreateEvaluationCommand(
             student.Id, "teacher-1", course.Id, 1, 1, new DateOnly(2026, 3, 20),
@@ -56,7 +57,8 @@ public class CreateEvaluationCommandHandlerTests
     public async Task Handle_WithNoTopicScores_ReturnsFailure()
     {
         var (context, student, course, _, _) = await SeedAsync();
-        var handler = new CreateEvaluationCommandHandler(context, new AverageGradingStrategy());
+        var handler = new CreateEvaluationCommandHandler(
+            RepositoryFactory.Evaluations(context), RepositoryFactory.Students(context), RepositoryFactory.Topics(context), new AverageGradingStrategy(), context);
 
         var command = new CreateEvaluationCommand(student.Id, "teacher-1", course.Id, 1, 1, new DateOnly(2026, 3, 20), []);
 
@@ -76,7 +78,8 @@ public class CreateEvaluationCommandHandlerTests
         context.Topics.Add(otherTopic);
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new CreateEvaluationCommandHandler(context, new AverageGradingStrategy());
+        var handler = new CreateEvaluationCommandHandler(
+            RepositoryFactory.Evaluations(context), RepositoryFactory.Students(context), RepositoryFactory.Topics(context), new AverageGradingStrategy(), context);
         var command = new CreateEvaluationCommand(
             student.Id, "teacher-1", course.Id, 1, 1, new DateOnly(2026, 3, 20),
             [new TopicScoreInput(algebra.Id, 80, null), new TopicScoreInput(otherTopic.Id, 70, null)]);
@@ -90,7 +93,8 @@ public class CreateEvaluationCommandHandlerTests
     public async Task Handle_WhenStudentAlreadyEvaluatedForCourseAndTerm_ReturnsFailure()
     {
         var (context, student, course, algebra, fractions) = await SeedAsync();
-        var handler = new CreateEvaluationCommandHandler(context, new AverageGradingStrategy());
+        var handler = new CreateEvaluationCommandHandler(
+            RepositoryFactory.Evaluations(context), RepositoryFactory.Students(context), RepositoryFactory.Topics(context), new AverageGradingStrategy(), context);
 
         var firstCommand = new CreateEvaluationCommand(
             student.Id, "teacher-1", course.Id, 1, 1, new DateOnly(2026, 3, 20),

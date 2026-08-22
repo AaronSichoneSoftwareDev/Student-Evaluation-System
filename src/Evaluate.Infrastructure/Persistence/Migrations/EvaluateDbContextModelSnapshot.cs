@@ -227,6 +227,8 @@ namespace Evaluate.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CourseId");
 
+                    b.HasIndex("ClassId", "AcademicYearId", "IsActive");
+
                     b.ToTable("TeacherCourses");
                 });
 
@@ -491,6 +493,10 @@ namespace Evaluate.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CourseId", "TermId", "Status");
+
+                    b.HasIndex("StudentId", "CourseId", "TermId");
+
                     b.ToTable("Evaluation", (string)null);
                 });
 
@@ -677,9 +683,9 @@ namespace Evaluate.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AcademicYearId");
 
-                    b.HasIndex("ClassId");
+                    b.HasIndex("ClassId", "AcademicYearId", "Status");
 
-                    b.HasIndex("StudentId");
+                    b.HasIndex("StudentId", "AcademicYearId", "Status");
 
                     b.ToTable("StudentEnrollments");
                 });

@@ -1,7 +1,7 @@
 @if (IsVisible)
 {
     <div class="modal-backdrop-custom" @onclick="Close">
-        <div class="modal-panel-custom" @onclick:stopPropagation="true">
+        <div class="modal-panel-custom @(Size == ModalSize.Large ? "modal-panel-custom--large" : "")" @onclick:stopPropagation="true">
             <div class="modal-panel-header">
                 <div>
                     <h3>@Title</h3>
@@ -30,6 +30,9 @@
 
     [Parameter]
     public string? Subtitle { get; set; }
+
+    [Parameter]
+    public ModalSize Size { get; set; } = ModalSize.Default;
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }

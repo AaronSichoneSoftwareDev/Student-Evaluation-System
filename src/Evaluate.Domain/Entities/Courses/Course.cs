@@ -37,5 +37,18 @@ public class Course : BaseAuditableEntity
         return new Course(courseCode.Trim().ToUpperInvariant(), courseName.Trim(), description?.Trim());
     }
 
+    public void Update(string courseName, string? description)
+    {
+        if (string.IsNullOrWhiteSpace(courseName))
+        {
+            throw new ArgumentException("Course name is required.", nameof(courseName));
+        }
+
+        CourseName = courseName.Trim();
+        Description = description?.Trim();
+    }
+
+    public void Activate() => IsActive = true;
+
     public void Deactivate() => IsActive = false;
 }

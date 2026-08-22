@@ -88,7 +88,8 @@ else
         <DataTablePanel TItem="ActiveStudentDto" Items="_students"
                          Title="Active Students"
                          SearchPredicate="@((s, q) => s.FullName.Contains(q, StringComparison.OrdinalIgnoreCase) || s.StudentNumber.Contains(q, StringComparison.OrdinalIgnoreCase) || s.ClassName.Contains(q, StringComparison.OrdinalIgnoreCase))"
-                         SearchPlaceholder="Search students...">
+                         SearchPlaceholder="Search students..."
+                         Sort="SortItems">
             <ChildContent Context="items">
                 <div class="table-scroll">
                     <table class="pro-table">
@@ -104,7 +105,7 @@ else
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var student in SortItems(items))
+                            @foreach (var student in items)
                             {
                                 <tr>
                                     <td>@student.StudentNumber</td>

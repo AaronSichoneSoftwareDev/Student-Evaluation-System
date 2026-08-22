@@ -13,7 +13,8 @@ public class CreateStudentCommandHandlerTests
     public async Task Handle_WithValidCommand_CreatesStudentAndReturnsId()
     {
         using var context = TestDbContext.Create();
-        var handler = new CreateStudentCommandHandler(context);
+        var handler = new CreateStudentCommandHandler(
+            RepositoryFactory.Students(context), RepositoryFactory.AcademicYears(context), RepositoryFactory.Enrollments(context), context);
         var command = new CreateStudentCommand("STU001", "Peter", "Banda", new DateOnly(2013, 3, 14), Gender.Male);
 
         var result = await handler.Handle(command, CancellationToken.None);
@@ -27,7 +28,8 @@ public class CreateStudentCommandHandlerTests
     public async Task Handle_WithDuplicateStudentNumber_ReturnsFailure()
     {
         using var context = TestDbContext.Create();
-        var handler = new CreateStudentCommandHandler(context);
+        var handler = new CreateStudentCommandHandler(
+            RepositoryFactory.Students(context), RepositoryFactory.AcademicYears(context), RepositoryFactory.Enrollments(context), context);
         var command = new CreateStudentCommand("STU001", "Peter", "Banda", new DateOnly(2013, 3, 14), Gender.Male);
         await handler.Handle(command, CancellationToken.None);
 
@@ -48,7 +50,8 @@ public class CreateStudentCommandHandlerTests
         context.Classes.Add(schoolClass);
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new CreateStudentCommandHandler(context);
+        var handler = new CreateStudentCommandHandler(
+            RepositoryFactory.Students(context), RepositoryFactory.AcademicYears(context), RepositoryFactory.Enrollments(context), context);
         var command = new CreateStudentCommand("STU001", "Peter", "Banda", new DateOnly(2013, 3, 14), Gender.Male, ClassId: schoolClass.Id);
 
         var result = await handler.Handle(command, CancellationToken.None);
@@ -67,7 +70,8 @@ public class CreateStudentCommandHandlerTests
         context.Classes.Add(schoolClass);
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new CreateStudentCommandHandler(context);
+        var handler = new CreateStudentCommandHandler(
+            RepositoryFactory.Students(context), RepositoryFactory.AcademicYears(context), RepositoryFactory.Enrollments(context), context);
         var command = new CreateStudentCommand("STU001", "Peter", "Banda", new DateOnly(2013, 3, 14), Gender.Male, ClassId: schoolClass.Id);
 
         var result = await handler.Handle(command, CancellationToken.None);

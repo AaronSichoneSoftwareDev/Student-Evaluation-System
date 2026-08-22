@@ -1,7 +1,10 @@
-using Evaluate.Application.Common.Interfaces;
-using Evaluate.Domain.Enums;
+using Evaluate.Application.AcademicYears;
+using Evaluate.Application.Classes;
+using Evaluate.Application.Enrollments;
+using Evaluate.Application.TeacherCourses;
+using Evaluate.Application.Terms;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
+using IStudentRepository = Evaluate.Application.Students.IStudentRepository;
 
 namespace Evaluate.Application.Evaluations.Queries.GetPendingEvaluationsList;
 
@@ -9,28 +12,30 @@ namespace Evaluate.Application.Evaluations.Queries.GetPendingEvaluationsList;
 /// current term. A teacher may be assigned more than one subject for the same class, so a
 /// student counts as pending if they're missing a finalized evaluation in *any* of those
 /// subjects — which one gets resolved is left to the teacher when they click Evaluate.</summary>
-public class GetPendingEvaluationsListQueryHandler(IApplicationDbContext context) : IRequestHandler<GetPendingEvaluationsListQuery, PendingEvaluationsResult>
+public class GetPendingEvaluationsListQueryHandler(
+    IAcademicYearRepository academicYears,
+    ITermRepository terms,
+    ITeacherCourseRepository teacherCourses,
+    IEnrollmentRepository enrollments,
+    IEvaluationRepository evaluations,
+    IClassRepository classes,
+    IStudentRepository students) : IRequestHandler<GetPendingEvaluationsListQuery, PendingEvaluationsResult>
 {
     public async Task<PendingEvaluationsResult> Handle(GetPendingEvaluationsListQuery request, CancellationToken cancellationToken)
     {
-        var currentYear = await context.AcademicYears.FirstOrDefaultAsync(y => y.IsCurrent, cancellationToken);
+        var currentYear = await academicYears.GetCurrentAsync(cancellationToken);
         if (currentYear is null)
         {
             return new PendingEvaluationsResult(false, null, null, false, [], []);
         }
 
-        var currentTerm = await context.Terms.FirstOrDefaultAsync(t => t.AcademicYearId == currentYear.Id && t.IsCurrent, cancellationToken);
+        var currentTerm = await terms.GetCurrentAsync(currentYear.Id, cancellationToken);
         if (currentTerm is null)
         {
             return new PendingEvaluationsResult(true, currentYear.YearName, null, false, [], []);
         }
 
-        var assignments = await context.TeacherCourses
-            .Include(tc => tc.Course)
-            .Where(
-                tc => tc.TeacherUserId == request.TeacherUserId && tc.ClassId == request.ClassId
-                    && tc.AcademicYearId == currentYear.Id && tc.IsActive)
-            .ToListAsync(cancellationToken);
+        var assignments = await teacherCourses.GetActiveForTeacherAndClassAsync(request.TeacherUserId, request.ClassId, currentYear.Id, cancellationToken);
         if (assignments.Count == 0)
         {
             return new PendingEvaluationsResult(true, currentYear.YearName, currentTerm.TermName, false, [], []);
@@ -43,28 +48,20 @@ public class GetPendingEvaluationsListQueryHandler(IApplicationDbContext context
             .ToList();
         var courseIds = availableCourses.Select(c => c.CourseId).ToList();
 
-        var enrolledStudentIds = await context.StudentEnrollments
-            .Where(e => e.ClassId == request.ClassId && e.AcademicYearId == currentYear.Id && e.Status == EnrollmentStatus.Active)
-            .Select(e => e.StudentId)
-            .ToListAsync(cancellationToken);
+        var enrolledStudentIds = await enrollments.GetActiveStudentIdsAsync(request.ClassId, currentYear.Id, cancellationToken);
 
-        var evaluatedPairs = await context.Evaluations
-            .Where(e => courseIds.Contains(e.CourseId) && e.TermId == currentTerm.Id && e.Status == EvaluationStatus.Finalized && enrolledStudentIds.Contains(e.StudentId))
-            .Select(e => new { e.StudentId, e.CourseId })
-            .ToListAsync(cancellationToken);
-        var evaluatedSet = evaluatedPairs.Select(p => (p.StudentId, p.CourseId)).ToHashSet();
+        var evaluatedPairs = await evaluations.GetFinalizedStudentCoursePairsAsync(courseIds, currentTerm.Id, enrolledStudentIds, cancellationToken);
+        var evaluatedSet = evaluatedPairs.ToHashSet();
 
         var pendingStudentIds = enrolledStudentIds
             .Where(studentId => courseIds.Any(courseId => !evaluatedSet.Contains((studentId, courseId))))
             .ToList();
 
-        var schoolClass = await context.Classes.FirstAsync(c => c.Id == request.ClassId, cancellationToken);
+        var schoolClass = (await classes.GetByIdAsync(request.ClassId, cancellationToken))!;
 
-        var pendingStudents = await context.Students
-            .Where(s => pendingStudentIds.Contains(s.Id))
-            .ToListAsync(cancellationToken);
+        var pendingStudents = await students.GetByIdsAsync(pendingStudentIds, cancellationToken);
 
-        var students = pendingStudents
+        var studentDtos = pendingStudents
             .Select(s => new PendingEvaluationDto(
                 s.Id,
                 s.StudentNumber,
@@ -77,6 +74,6 @@ public class GetPendingEvaluationsListQueryHandler(IApplicationDbContext context
             .OrderBy(s => s.StudentName)
             .ToList();
 
-        return new PendingEvaluationsResult(true, currentYear.YearName, currentTerm.TermName, true, availableCourses, students);
+        return new PendingEvaluationsResult(true, currentYear.YearName, currentTerm.TermName, true, availableCourses, studentDtos);
     }
 }

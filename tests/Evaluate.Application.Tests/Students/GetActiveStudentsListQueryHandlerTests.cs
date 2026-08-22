@@ -22,7 +22,7 @@ public class GetActiveStudentsListQueryHandlerTests
     public async Task Handle_WithNoCurrentAcademicYear_ReturnsEmptyList()
     {
         using var context = TestDbContext.Create();
-        var handler = new GetActiveStudentsListQueryHandler(context);
+        var handler = new GetActiveStudentsListQueryHandler(RepositoryFactory.Students(context));
 
         var result = await handler.Handle(new GetActiveStudentsListQuery(), CancellationToken.None);
 
@@ -57,7 +57,7 @@ public class GetActiveStudentsListQueryHandlerTests
             StudentEnrollmentEntity.Enroll(pastYearStudent.Id, pastYear.Id, schoolClass.Id, new DateOnly(2025, 1, 12)));
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new GetActiveStudentsListQueryHandler(context);
+        var handler = new GetActiveStudentsListQueryHandler(RepositoryFactory.Students(context));
 
         var result = await handler.Handle(new GetActiveStudentsListQuery(), CancellationToken.None);
 
@@ -82,10 +82,10 @@ public class GetActiveStudentsListQueryHandlerTests
         context.StudentEnrollments.Add(StudentEnrollmentEntity.Enroll(student.Id, currentYear.Id, schoolClass.Id, new DateOnly(2026, 1, 12)));
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var listHandler = new GetActiveStudentsListQueryHandler(context);
+        var listHandler = new GetActiveStudentsListQueryHandler(RepositoryFactory.Students(context));
         Assert.Single(await listHandler.Handle(new GetActiveStudentsListQuery(), CancellationToken.None));
 
-        var deactivateHandler = new DeactivateStudentCommandHandler(context);
+        var deactivateHandler = new DeactivateStudentCommandHandler(RepositoryFactory.Students(context), context);
         await deactivateHandler.Handle(new DeactivateStudentCommand(student.Id), CancellationToken.None);
 
         var result = await listHandler.Handle(new GetActiveStudentsListQuery(), CancellationToken.None);
@@ -149,7 +149,7 @@ public class GetActiveStudentsListQueryHandlerTests
 
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new GetActiveStudentsListQueryHandler(context);
+        var handler = new GetActiveStudentsListQueryHandler(RepositoryFactory.Students(context));
         var result = await handler.Handle(new GetActiveStudentsListQuery(), CancellationToken.None);
 
         Assert.True(result.Single(s => s.StudentId == readyStudent.Id).ReportCardReady);

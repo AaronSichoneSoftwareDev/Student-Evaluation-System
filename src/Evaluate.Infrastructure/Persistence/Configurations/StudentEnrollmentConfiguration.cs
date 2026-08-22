@@ -10,5 +10,10 @@ public class StudentEnrollmentConfiguration : IEntityTypeConfiguration<StudentEn
     {
         builder.HasOne(e => e.AcademicYear).WithMany().HasForeignKey(e => e.AcademicYearId);
         builder.HasOne(e => e.Class).WithMany().HasForeignKey(e => e.ClassId);
+
+        // Class-scoped lookups (who's enrolled in this class this year) and student-scoped
+        // lookups (this student's active enrollment) are both hot paths — index both directions.
+        builder.HasIndex(e => new { e.ClassId, e.AcademicYearId, e.Status });
+        builder.HasIndex(e => new { e.StudentId, e.AcademicYearId, e.Status });
     }
 }

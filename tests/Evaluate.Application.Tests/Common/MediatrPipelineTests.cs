@@ -1,6 +1,7 @@
 using Evaluate.Application.Common.Behaviours;
 using Evaluate.Application.Common.Exceptions;
 using Evaluate.Application.Common.Interfaces;
+using Evaluate.Application.Courses.Commands.UpdateCourse;
 using Evaluate.Application.Evaluations.Queries.GetStudentReportCard;
 using Evaluate.Application.Evaluations.Queries.GetStudentReportCardPdf;
 using Evaluate.Application.Students.Commands.CreateStudent;
@@ -40,10 +41,23 @@ public class MediatrPipelineTests
 
         services.AddLogging();
         services.AddSingleton<IApplicationDbContext>(context);
+        services.AddSingleton<IUnitOfWork>(context);
         services.AddSingleton<ICurrentUserService, FakeCurrentUserService>();
         services.AddSingleton<IIdentityService, FakeIdentityService>();
         services.AddSingleton<IGradingStrategy, AverageGradingStrategy>();
         services.AddSingleton<IReportCardPdfGenerator, FakeReportCardPdfGenerator>();
+
+        services.AddSingleton<Application.AcademicYears.IAcademicYearRepository>(RepositoryFactory.AcademicYears(context));
+        services.AddSingleton<Application.Terms.ITermRepository>(RepositoryFactory.Terms(context));
+        services.AddSingleton<Application.Classes.IClassRepository>(RepositoryFactory.Classes(context));
+        services.AddSingleton<Application.Courses.ICourseRepository>(RepositoryFactory.Courses(context));
+        services.AddSingleton<Application.Topics.ITopicRepository>(RepositoryFactory.Topics(context));
+        services.AddSingleton<Application.Students.IStudentRepository>(RepositoryFactory.Students(context));
+        services.AddSingleton<Application.Enrollments.IEnrollmentRepository>(RepositoryFactory.Enrollments(context));
+        services.AddSingleton<Application.TeacherCourses.ITeacherCourseRepository>(RepositoryFactory.TeacherCourses(context));
+        services.AddSingleton<Application.Evaluations.IEvaluationRepository>(RepositoryFactory.Evaluations(context));
+        services.AddSingleton<Application.EvaluationCriteria.IEvaluationCriteriaRepository>(RepositoryFactory.EvaluationCriteria(context));
+        services.AddSingleton<Application.AuditLogs.IAuditLogRepository>(RepositoryFactory.AuditLogs(context));
 
         services.AddValidatorsFromAssembly(typeof(CreateStudentCommand).Assembly);
 
@@ -106,6 +120,22 @@ public class MediatrPipelineTests
         var mediator = provider.GetRequiredService<IMediator>();
 
         var result = await mediator.Send(new DeactivateStudentCommand(student.Id));
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task Send_UpdateCourseCommand_SucceedsWithNoLoggedInUser()
+    {
+        using var context = TestDbContext.Create();
+        var course = CourseEntity.Create("HIST01", "History");
+        context.Courses.Add(course);
+        await context.SaveChangesAsync(CancellationToken.None);
+
+        var provider = BuildServiceProvider(context);
+        var mediator = provider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(new UpdateCourseCommand(course.Id, "World History"));
 
         Assert.True(result.Succeeded);
     }

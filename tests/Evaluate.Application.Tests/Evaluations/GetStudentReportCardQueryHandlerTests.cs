@@ -65,7 +65,9 @@ public class GetStudentReportCardQueryHandlerTests
         context.Evaluations.AddRange(mathEval, englishEval);
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new GetStudentReportCardQueryHandler(context);
+        var handler = new GetStudentReportCardQueryHandler(
+            RepositoryFactory.Students(context), RepositoryFactory.Terms(context), RepositoryFactory.AcademicYears(context),
+            RepositoryFactory.Enrollments(context), RepositoryFactory.Evaluations(context), RepositoryFactory.Courses(context), RepositoryFactory.TeacherCourses(context));
 
         var result = await handler.Handle(new GetStudentReportCardQuery(student.Id, term.Id), CancellationToken.None);
 
@@ -90,7 +92,9 @@ public class GetStudentReportCardQueryHandlerTests
         context.Students.Add(student);
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new GetStudentReportCardQueryHandler(context);
+        var handler = new GetStudentReportCardQueryHandler(
+            RepositoryFactory.Students(context), RepositoryFactory.Terms(context), RepositoryFactory.AcademicYears(context),
+            RepositoryFactory.Enrollments(context), RepositoryFactory.Evaluations(context), RepositoryFactory.Courses(context), RepositoryFactory.TeacherCourses(context));
 
         var result = await handler.Handle(new GetStudentReportCardQuery(student.Id), CancellationToken.None);
 
@@ -139,7 +143,9 @@ public class GetStudentReportCardQueryHandlerTests
         context.Evaluations.Add(mathEval);
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new GetStudentReportCardQueryHandler(context);
+        var handler = new GetStudentReportCardQueryHandler(
+            RepositoryFactory.Students(context), RepositoryFactory.Terms(context), RepositoryFactory.AcademicYears(context),
+            RepositoryFactory.Enrollments(context), RepositoryFactory.Evaluations(context), RepositoryFactory.Courses(context), RepositoryFactory.TeacherCourses(context));
 
         var result = await handler.Handle(new GetStudentReportCardQuery(student.Id, term.Id), CancellationToken.None);
 

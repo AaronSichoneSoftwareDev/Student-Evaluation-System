@@ -1,26 +1,13 @@
 using Evaluate.Application.Common.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace Evaluate.Application.TeacherCourses.Queries.GetTeacherCoursesList;
 
-public class GetTeacherCoursesListQueryHandler(IApplicationDbContext context, IIdentityService identityService) : IRequestHandler<GetTeacherCoursesListQuery, List<TeacherCourseDto>>
+public class GetTeacherCoursesListQueryHandler(ITeacherCourseRepository teacherCourses, IIdentityService identityService) : IRequestHandler<GetTeacherCoursesListQuery, List<TeacherCourseDto>>
 {
     public async Task<List<TeacherCourseDto>> Handle(GetTeacherCoursesListQuery request, CancellationToken cancellationToken)
     {
-        var query = context.TeacherCourses.Include(tc => tc.Course).AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(request.TeacherUserId))
-        {
-            query = query.Where(tc => tc.TeacherUserId == request.TeacherUserId);
-        }
-
-        if (request.CourseId.HasValue)
-        {
-            query = query.Where(tc => tc.CourseId == request.CourseId);
-        }
-
-        var assignments = await query.ToListAsync(cancellationToken);
+        var assignments = await teacherCourses.GetAssignmentsAsync(request.TeacherUserId, request.CourseId, cancellationToken);
 
         var dtos = new List<TeacherCourseDto>(assignments.Count);
         foreach (var assignment in assignments)

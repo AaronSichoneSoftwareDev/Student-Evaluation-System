@@ -13,5 +13,10 @@ public class SchoolEvaluationConfiguration : IEntityTypeConfiguration<Evaluation
         builder.ToTable("Evaluation");
         builder.Property(e => e.TeacherUserId).IsRequired();
         builder.HasMany(e => e.Results).WithOne(r => r.Evaluation).HasForeignKey(r => r.EvaluationId);
+
+        // The duplicate-evaluation guard and report-card queries both filter on this triple;
+        // the pending-evaluations list filters by course/term/status instead.
+        builder.HasIndex(e => new { e.StudentId, e.CourseId, e.TermId });
+        builder.HasIndex(e => new { e.CourseId, e.TermId, e.Status });
     }
 }

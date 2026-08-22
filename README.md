@@ -18,11 +18,13 @@ Evaluate.Web             — Blazor Server UI, composition root
 ## Design patterns & practices
 
 - **CQRS** via MediatR — every write is a `Command`, every read a `Query`, each with its own handler
+- **Repository pattern** — one repository per aggregate (`IStudentRepository`, `IEvaluationRepository`, `ICourseRepository`, etc.), each scoped to its module in Application and implemented against EF Core in Infrastructure. Command/query handlers depend on these narrow interfaces, never on the EF Core `DbContext` directly — `IApplicationDbContext` is now an Infrastructure-only concern that the repositories (and the data seeder) are built on
+- **Unit of Work** — `IUnitOfWork.SaveChangesAsync` commits whatever a request's repositories staged, kept as a separate interface from the repositories themselves so "collect changes" and "commit changes" stay distinct responsibilities
 - **Pipeline behaviours** wrapping every request: unhandled-exception logging, permission-based authorization (`[RequirePermission]`), FluentValidation, and performance logging
 - **Result pattern** (`Result` / `Result<T>`) for expected business-rule failures, kept separate from `ValidationException` (input validation) and thrown exceptions (unexpected/exceptional cases)
 - **Factory pattern** — domain entities expose private constructors and static `Create(...)` factories that enforce invariants at construction time
 - **Strategy pattern** — `IGradingStrategy` abstracts how topic scores become a final percentage and letter grade
-- **Specification pattern** — composable query filters (e.g. `EvaluationsFilterSpecification`)
+- **Specification pattern** — composable query filters (e.g. `EvaluationsFilterSpecification`), applied inside `IEvaluationRepository`
 - **Domain events** — raised by entities, dispatched through an EF Core `SaveChanges` interceptor; a second interceptor handles audit logging (created/modified by, timestamps) automatically
 - **ASP.NET Core Identity** with permissions modeled as role claims, enforced declaratively via `[RequirePermission]`
 

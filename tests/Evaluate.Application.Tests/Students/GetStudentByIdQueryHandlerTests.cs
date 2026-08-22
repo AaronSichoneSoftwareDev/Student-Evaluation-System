@@ -15,7 +15,7 @@ public class GetStudentByIdQueryHandlerTests
     public async Task Handle_WithUnknownId_ReturnsNull()
     {
         using var context = TestDbContext.Create();
-        var handler = new GetStudentByIdQueryHandler(context);
+        var handler = new GetStudentByIdQueryHandler(RepositoryFactory.Students(context));
 
         var result = await handler.Handle(new GetStudentByIdQuery(999), CancellationToken.None);
 
@@ -39,7 +39,7 @@ public class GetStudentByIdQueryHandlerTests
         context.StudentEnrollments.Add(StudentEnrollmentEntity.Enroll(student.Id, year.Id, schoolClass.Id, new DateOnly(2026, 1, 12)));
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var handler = new GetStudentByIdQueryHandler(context);
+        var handler = new GetStudentByIdQueryHandler(RepositoryFactory.Students(context));
 
         var result = await handler.Handle(new GetStudentByIdQuery(student.Id), CancellationToken.None);
 
