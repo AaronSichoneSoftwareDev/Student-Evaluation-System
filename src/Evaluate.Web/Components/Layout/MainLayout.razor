@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @using Evaluate.Application.Dashboard
 @inject IDashboardService DashboardService
+@inject NavigationManager Navigation
 
 <div class="app-shell">
     <header class="topbar">
@@ -10,10 +11,12 @@
                 <span class="brand-name">Evaluate</span>
             </a>
 
-            <div class="topbar-search">
-                <input type="search" placeholder="Search students, evaluations..." />
-                <i class="bi bi-search"></i>
-            </div>
+            <form class="topbar-search" @onsubmit="OnSearchSubmit">
+                <input type="search" placeholder="Search students..." value="@_searchTerm" @oninput="OnSearchInput" />
+                <button type="submit" class="topbar-search-submit" aria-label="Search">
+                    <i class="bi bi-search"></i>
+                </button>
+            </form>
 
             <div class="topbar-actions">
                 <button type="button" class="icon-btn" aria-label="Notifications">
@@ -96,6 +99,19 @@
 @code {
     private HeaderStatDto? _headerStat1;
     private HeaderStatDto? _headerStat2;
+    private string _searchTerm = string.Empty;
+
+    private void OnSearchInput(ChangeEventArgs e) => _searchTerm = e.Value?.ToString() ?? string.Empty;
+
+    private void OnSearchSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            return;
+        }
+
+        Navigation.NavigateTo($"/students?search={Uri.EscapeDataString(_searchTerm)}");
+    }
 
     protected override async Task OnInitializedAsync()
     {

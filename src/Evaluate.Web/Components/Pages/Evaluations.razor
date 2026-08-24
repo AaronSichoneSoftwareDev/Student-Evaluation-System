@@ -352,7 +352,7 @@ else
 
     private async Task LoadTopicsAsync(int courseId)
     {
-        var topics = await Mediator.Send(new GetTopicsListQuery(courseId));
+        var topics = (await Mediator.Send(new GetTopicsListQuery(courseId))).Where(t => t.IsActive).ToList();
         _evaluateTopics = topics;
         _topicForms = topics
             .OrderBy(t => t.TopicOrder)

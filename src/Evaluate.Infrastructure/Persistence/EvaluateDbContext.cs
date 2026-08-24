@@ -12,11 +12,9 @@ using EvaluationResultEntity = Evaluate.Domain.Entities.Evaluations.EvaluationRe
 
 // Dashboard demo entities kept separate from the real school-management model below.
 using DashboardStudent = Evaluate.Domain.Entities.Dashboard.Student;
-using DashboardInstructor = Evaluate.Domain.Entities.Dashboard.Instructor;
 using DashboardEvaluation = Evaluate.Domain.Entities.Dashboard.Evaluation;
 using DashboardSubmission = Evaluate.Domain.Entities.Dashboard.Submission;
 using DashboardActivityFeedItem = Evaluate.Domain.Entities.Dashboard.ActivityFeedItem;
-using DashboardInboxMessage = Evaluate.Domain.Entities.Dashboard.InboxMessage;
 
 namespace Evaluate.Infrastructure.Persistence;
 
@@ -25,11 +23,9 @@ public class EvaluateDbContext(DbContextOptions<EvaluateDbContext> options)
 {
     // Dashboard demo data (untouched — feeds the dashboard's seeded visuals only).
     public DbSet<DashboardStudent> Students => Set<DashboardStudent>();
-    public DbSet<DashboardInstructor> Instructors => Set<DashboardInstructor>();
     public DbSet<DashboardEvaluation> Evaluations => Set<DashboardEvaluation>();
     public DbSet<DashboardSubmission> Submissions => Set<DashboardSubmission>();
     public DbSet<DashboardActivityFeedItem> ActivityFeedItems => Set<DashboardActivityFeedItem>();
-    public DbSet<DashboardInboxMessage> InboxMessages => Set<DashboardInboxMessage>();
 
     // Real school-management model (IApplicationDbContext).
     public DbSet<AcademicYear> AcademicYears => Set<AcademicYear>();

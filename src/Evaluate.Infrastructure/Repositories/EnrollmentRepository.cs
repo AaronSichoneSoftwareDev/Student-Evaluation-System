@@ -57,4 +57,8 @@ public class EnrollmentRepository(IApplicationDbContext context) : IEnrollmentRe
             .Where(e => e.ClassId == classId && e.AcademicYearId == academicYearId && e.Status == EnrollmentStatus.Active)
             .Select(e => e.StudentId)
             .ToListAsync(cancellationToken);
+
+    public Task<int> CountActiveByAcademicYearAsync(int academicYearId, CancellationToken cancellationToken = default) =>
+        context.StudentEnrollments
+            .CountAsync(e => e.AcademicYearId == academicYearId && e.Status == EnrollmentStatus.Active, cancellationToken);
 }

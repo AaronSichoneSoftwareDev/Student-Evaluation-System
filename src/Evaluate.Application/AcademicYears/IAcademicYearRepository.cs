@@ -7,7 +7,9 @@ public interface IAcademicYearRepository
 {
     Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default);
 
-    Task<bool> ExistsByNameAsync(string yearName, CancellationToken cancellationToken = default);
+    /// <summary>Pass <paramref name="excludeId"/> when checking on an update, so the entity
+    /// being edited doesn't collide with itself.</summary>
+    Task<bool> ExistsByNameAsync(string yearName, int? excludeId = null, CancellationToken cancellationToken = default);
 
     Task<AcademicYearEntity?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 

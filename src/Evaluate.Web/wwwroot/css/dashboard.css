@@ -1,26 +1,29 @@
 :root {
-    --navy: #1c2333;
-    --navy-2: #242c40;
-    --purple: #6f63d9;
-    --purple-light: #8b7fe8;
-    --purple-pale: #efecfd;
-    --teal: #55c6e8;
-    --bg: #f3f5fb;
+    /* Palette: off-white #F2F1EF, periwinkle #6A7FC0, gold #F7B700 (+ white) */
+    --navy: #6A7FC0;
+    --navy-2: #0B2C7A;
+    --purple: #6A7FC0;
+    --purple-light: #A7B4DE;
+    --purple-pale: #EEF0FA;
+    --teal: #A7B4DE;
+    --bg: #F2F1EF;
     --card: #ffffff;
-    --text: #2c3145;
-    --muted: #9096a8;
-    --border: #edeff5;
-    --green: #21c17c;
-    --green-bg: #e4faf0;
+    --text: #6A7FC0;
+    --muted: #5B6690;
+    --border: #E2E4F0;
+    /* "green"/"red" are role names, not hues — positive uses the brand gold, negative uses a
+       dark shade of the brand periwinkle, so no literal green or red appears anywhere. */
+    --green: #F7B700;
+    --green-bg: #FDF3D9;
     --amber: #f2a93b;
     --amber-bg: #fdf3e2;
-    --red: #ef5677;
-    --red-bg: #fdeaef;
-    --pink: #ef4470;
-    --pink-dark: #dc3660;
+    --red: #3F4C73;
+    --red-bg: #E4E7F0;
+    --pink: #F7B700;
+    --pink-dark: #D69A00;
     --blue: #3b82f6;
     --blue-bg: #e8f1fe;
-    --shadow: 0 6px 24px rgba(37, 42, 79, 0.06);
+    --shadow: 0 6px 24px rgba(106, 127, 192, 0.08);
 }
 
 * {
@@ -47,7 +50,7 @@ a {
 
 /* ---------- Top bar ---------- */
 .topbar {
-    background: linear-gradient(120deg, var(--navy) 0%, var(--navy-2) 100%);
+    background: var(--navy);
     color: #fff;
 }
 
@@ -67,13 +70,15 @@ a {
     font-weight: 700;
     font-size: 1.25rem;
     flex-shrink: 0;
+    color: #fff;
 }
 
 .brand-mark {
     width: 34px;
     height: 34px;
     border-radius: 10px;
-    background: linear-gradient(135deg, var(--purple-light), var(--purple));
+    background: var(--navy-2);
+    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -100,12 +105,22 @@ a {
     color: rgba(255, 255, 255, 0.5);
 }
 
-.topbar-search i {
+.topbar-search-submit {
     position: absolute;
     right: 12px;
     top: 50%;
     transform: translateY(-50%);
     color: rgba(255, 255, 255, 0.6);
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.topbar-search-submit:hover {
+    color: #fff;
 }
 
 .topbar-actions {
@@ -151,7 +166,7 @@ a {
 }
 
 .avatar-topbar {
-    background: linear-gradient(135deg, var(--purple-light), var(--purple));
+    background: var(--navy-2);
     color: #fff;
 }
 
@@ -169,7 +184,7 @@ a {
 }
 
 .topbar-stat i {
-    color: var(--teal);
+    color: #fff;
     font-size: 1rem;
 }
 
@@ -179,7 +194,7 @@ a {
 }
 
 .topbar-stat-label {
-    color: rgba(255, 255, 255, 0.55);
+    color: #fff;
 }
 
 /* ---------- Secondary nav ---------- */
@@ -268,19 +283,29 @@ a {
 }
 
 .row-feed {
-    grid-template-columns: 1fr 1fr 1fr;
-    align-items: start;
+    grid-template-columns: 1.3fr 1fr;
+    align-items: stretch;
 }
 
-.row-tables {
-    grid-template-columns: 1fr 1fr;
+.row-feed .card {
+    display: flex;
+    flex-direction: column;
+}
+
+.row-feed .table-scroll {
+    flex: 1;
+}
+
+.row-feed .activity-list {
+    flex: 1;
+    max-height: none;
+    overflow-y: auto;
 }
 
 @media (max-width: 1100px) {
     .row-stats { grid-template-columns: repeat(2, 1fr); }
     .row-charts { grid-template-columns: 1fr; }
     .row-feed { grid-template-columns: 1fr; }
-    .row-tables { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {
@@ -308,7 +333,12 @@ a {
     padding: 20px;
     color: #fff;
     background: linear-gradient(135deg, var(--purple-light) 0%, var(--purple) 100%);
-    box-shadow: 0 10px 24px rgba(111, 99, 217, 0.28);
+    box-shadow: 0 10px 24px rgba(106, 127, 192, 0.28);
+}
+
+.stat-card-alert {
+    background: linear-gradient(135deg, #7C87A6 0%, var(--red) 100%);
+    box-shadow: 0 10px 24px rgba(63, 76, 115, 0.32);
 }
 
 .stat-card-top {
@@ -407,43 +437,12 @@ a {
     color: var(--muted);
 }
 
-/* ---------- Inbox ---------- */
-.inbox-list, .activity-list {
+.activity-list {
     display: flex;
     flex-direction: column;
     gap: 14px;
     max-height: 360px;
     overflow-y: auto;
-}
-
-.inbox-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.inbox-item-body {
-    flex: 1;
-    min-width: 0;
-}
-
-.inbox-item-name {
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.inbox-item-preview {
-    font-size: 0.75rem;
-    color: var(--muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.inbox-item-time {
-    font-size: 0.68rem;
-    color: var(--muted);
-    flex-shrink: 0;
 }
 
 /* ---------- Activity feed ---------- */
@@ -480,6 +479,14 @@ a {
     letter-spacing: 0.05em;
 }
 
+.activity-category {
+    margin-left: 8px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
 .activity-title {
     font-size: 0.85rem;
     font-weight: 600;
@@ -502,74 +509,6 @@ a {
     font-size: 0.78rem;
     font-weight: 600;
     cursor: pointer;
-}
-
-/* ---------- Quote card ---------- */
-.quote-card {
-    background: linear-gradient(135deg, var(--purple-light), var(--purple));
-    color: #fff;
-    position: relative;
-}
-
-.quote-mark {
-    font-size: 2.4rem;
-    font-weight: 700;
-    line-height: 1;
-    opacity: 0.5;
-}
-
-.quote-text {
-    font-size: 0.8rem;
-    line-height: 1.6;
-    margin: 6px 0 18px;
-}
-
-.quote-author {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.quote-author-name {
-    font-size: 0.82rem;
-    font-weight: 700;
-}
-
-.quote-author-title {
-    font-size: 0.68rem;
-    opacity: 0.8;
-}
-
-/* ---------- Yearly card ---------- */
-.yearly-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin: 4px 0 6px;
-}
-
-.yearly-desc {
-    font-size: 0.75rem;
-    color: var(--muted);
-    margin-bottom: 12px;
-}
-
-.yearly-link {
-    font-size: 0.75rem;
-    color: var(--purple);
-    font-weight: 600;
-}
-
-.yearly-flex {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 14px;
-}
-
-.yearly-flex .chart-canvas-wrap {
-    width: 130px;
-    height: 90px;
-    flex-shrink: 0;
 }
 
 /* ---------- Tables ---------- */
@@ -978,6 +917,90 @@ a {
 .score-meter-value.score-band-strong { color: var(--green); }
 .score-meter-status.score-band-strong { background: var(--green-bg); color: var(--green); }
 
+.topic-chip-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.topic-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--purple-pale);
+    color: var(--purple);
+    border-radius: 999px;
+    padding: 6px 8px 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.topic-chip-remove {
+    border: none;
+    background: transparent;
+    color: var(--purple);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.65rem;
+    padding: 0;
+}
+
+.topic-chip-remove:hover {
+    background: var(--purple);
+    color: #fff;
+}
+
+/* ---------- Angled section tabs (switches the whole table below, not just filters rows) ---------- */
+.section-tabs {
+    display: flex;
+    border-bottom: 3px solid var(--purple);
+}
+
+.section-tab {
+    position: relative;
+    flex: 0 0 auto;
+    border: none;
+    cursor: pointer;
+    background: var(--border);
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 14px 28px 14px 34px;
+    margin-left: -14px;
+    clip-path: polygon(18px 0, 100% 0, calc(100% - 18px) 100%, 0 100%);
+    transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.section-tab:first-child {
+    margin-left: 0;
+}
+
+.section-tab:hover:not(.active) {
+    background: var(--purple-pale);
+    color: var(--purple);
+}
+
+.section-tab.active {
+    background: var(--purple);
+    color: #fff;
+    z-index: 1;
+}
+
+.section-tab-count {
+    font-weight: 500;
+    opacity: 0.75;
+}
+
 .filter-row {
     display: flex;
     gap: 16px;
@@ -1114,7 +1137,7 @@ a {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: var(--green);
+    background: var(--pink);
     color: #fff;
     border: none;
     border-radius: 999px;

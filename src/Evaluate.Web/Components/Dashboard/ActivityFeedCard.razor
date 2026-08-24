@@ -16,7 +16,13 @@
                     }
                 </div>
                 <div>
-                    <div class="activity-date">@item.Date</div>
+                    <div class="activity-date">
+                        @item.Date
+                        @if (item.Category is not null)
+                        {
+                            <span class="status-dot status-@item.CategoryColor activity-category">@item.Category</span>
+                        }
+                    </div>
                     <div class="activity-title">@item.Title</div>
                     <div class="activity-desc">@item.Description</div>
                 </div>

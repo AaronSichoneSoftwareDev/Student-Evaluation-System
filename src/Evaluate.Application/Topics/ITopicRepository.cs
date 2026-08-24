@@ -7,6 +7,8 @@ public interface ITopicRepository
 {
     void Add(TopicEntity topic);
 
+    Task<TopicEntity?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+
     Task<int> CountValidForCourseAsync(List<int> topicIds, int courseId, CancellationToken cancellationToken = default);
 
     Task<List<TopicDto>> GetListAsync(int? courseId, CancellationToken cancellationToken = default);

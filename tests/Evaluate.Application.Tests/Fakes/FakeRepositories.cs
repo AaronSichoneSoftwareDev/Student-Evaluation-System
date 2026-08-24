@@ -22,25 +22,10 @@ public class FakeSubmissionRepository(IReadOnlyList<Submission> submissions) : I
 {
     public Task<IReadOnlyList<Submission>> GetAllAsync(CancellationToken cancellationToken = default)
         => Task.FromResult(submissions);
-
-    public Task<IReadOnlyList<Submission>> GetLatestAsync(int count, CancellationToken cancellationToken = default)
-        => Task.FromResult<IReadOnlyList<Submission>>(submissions.OrderByDescending(s => s.Date).Take(count).ToList());
 }
 
 public class FakeActivityFeedRepository(IReadOnlyList<ActivityFeedItem> items) : IActivityFeedRepository
 {
     public Task<IReadOnlyList<ActivityFeedItem>> GetRecentAsync(int count, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<ActivityFeedItem>>(items.OrderByDescending(i => i.Date).Take(count).ToList());
-}
-
-public class FakeInboxRepository(IReadOnlyList<InboxMessage> messages) : IInboxRepository
-{
-    public Task<IReadOnlyList<InboxMessage>> GetAllAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(messages);
-}
-
-public class FakeInstructorRepository(Instructor? featured) : IInstructorRepository
-{
-    public Task<Instructor?> GetFeaturedAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(featured);
 }

@@ -46,6 +46,29 @@ public class Term : BaseAuditableEntity
         return new Term(academicYearId, termName.Trim(), termNumber, startDate, endDate);
     }
 
+    public void Update(string termName, int termNumber, DateOnly startDate, DateOnly endDate)
+    {
+        if (string.IsNullOrWhiteSpace(termName))
+        {
+            throw new ArgumentException("Term name is required.", nameof(termName));
+        }
+
+        if (termNumber <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(termNumber), "Term number must be positive.");
+        }
+
+        if (endDate <= startDate)
+        {
+            throw new ArgumentException("End date must be after the start date.", nameof(endDate));
+        }
+
+        TermName = termName.Trim();
+        TermNumber = termNumber;
+        StartDate = startDate;
+        EndDate = endDate;
+    }
+
     public void Deactivate() => IsActive = false;
 
     public void MarkAsCurrent() => IsCurrent = true;

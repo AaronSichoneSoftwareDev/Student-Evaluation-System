@@ -1,21 +1,27 @@
 @page "/academic-setup"
 @using Evaluate.Application.AcademicYears.Queries.GetAcademicYearsList
 @using Evaluate.Application.AcademicYears.Commands.CreateAcademicYear
+@using Evaluate.Application.AcademicYears.Commands.UpdateAcademicYear
+@using Evaluate.Application.AcademicYears.Commands.DeactivateAcademicYear
 @using Evaluate.Application.Terms.Queries.GetTermsList
 @using Evaluate.Application.Terms.Commands.CreateTerm
-@using Evaluate.Application.Classes.Queries.GetClassesList
-@using Evaluate.Application.Classes.Commands.CreateClass
+@using Evaluate.Application.Terms.Commands.UpdateTerm
+@using Evaluate.Application.Terms.Commands.DeactivateTerm
 @using Evaluate.Application.Common.Exceptions
+@using Evaluate.Application.Common.Models
 @using MediatR
 @inject IMediator Mediator
 @inject ToastService Toast
+@inject ConfirmService Confirm
 
 <PageTitle>Academic Setup - Evaluate</PageTitle>
 
-<PageHeader Title="Academic Setup" Subtitle="Academic years, terms, and classes."
+<PageHeader Title="Academic Setup" Subtitle="Academic years and terms."
             AddOptions="_addOptions" OnRefresh="RefreshAsync" />
 
-<Modal IsVisible="_showYearModal" Title="Add Academic Year" Subtitle="Define a new academic year and its date range." OnClose="() => _showYearModal = false">
+<Modal IsVisible="_showYearModal" Title="@(_editingYearId.HasValue ? "Edit Academic Year" : "Add Academic Year")"
+       Subtitle="@(_editingYearId.HasValue ? "Update this academic year's name and date range." : "Define a new academic year and its date range.")"
+       OnClose="() => _showYearModal = false">
     <div class="form-group">
         <label class="form-label">Year Name</label>
         <input class="form-control" @bind="_yearForm.YearName" placeholder="2027" />
@@ -36,14 +42,18 @@
     }
     <div class="form-actions">
         <button type="button" class="btn-secondary" @onclick="() => _showYearModal = false">Cancel</button>
-        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveYearAsync">@(_saving ? "Saving..." : "Save Year")</button>
+        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveYearAsync">
+            @(_saving ? "Saving..." : _editingYearId.HasValue ? "Save Changes" : "Save Year")
+        </button>
     </div>
 </Modal>
 
-<Modal IsVisible="_showTermModal" Title="Add Term" Subtitle="Add a new term to an existing academic year." OnClose="() => _showTermModal = false">
+<Modal IsVisible="_showTermModal" Title="@(_editingTermId.HasValue ? "Edit Term" : "Add Term")"
+       Subtitle="@(_editingTermId.HasValue ? "Update this term's details." : "Add a new term to an existing academic year.")"
+       OnClose="() => _showTermModal = false">
     <div class="form-group">
         <label class="form-label">Academic Year</label>
-        <select class="form-control" @bind="_termForm.AcademicYearId">
+        <select class="form-control" @bind="_termForm.AcademicYearId" disabled="@_editingTermId.HasValue">
             <option value="0">Select a year...</option>
             @foreach (var year in _years ?? [])
             {
@@ -77,199 +87,202 @@
     }
     <div class="form-actions">
         <button type="button" class="btn-secondary" @onclick="() => _showTermModal = false">Cancel</button>
-        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveTermAsync">@(_saving ? "Saving..." : "Save Term")</button>
+        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveTermAsync">
+            @(_saving ? "Saving..." : _editingTermId.HasValue ? "Save Changes" : "Save Term")
+        </button>
     </div>
 </Modal>
 
-<Modal IsVisible="_showClassModal" Title="Add Class" Subtitle="Create a new class for students to enroll in." OnClose="() => _showClassModal = false">
-    <div class="form-row">
-        <div class="form-group">
-            <label class="form-label">Class Name</label>
-            <input class="form-control" @bind="_classForm.ClassName" placeholder="Grade 9A" />
-        </div>
-        <div class="form-group">
-            <label class="form-label">Grade Level</label>
-            <input class="form-control" @bind="_classForm.GradeLevel" placeholder="Grade 9" />
-        </div>
-    </div>
-    <div class="form-group">
-        <label class="form-label">Description (optional)</label>
-        <input class="form-control" @bind="_classForm.Description" />
-    </div>
-    @if (_classFormError is not null)
-    {
-        <p class="form-error">@_classFormError</p>
-    }
-    <div class="form-actions">
-        <button type="button" class="btn-secondary" @onclick="() => _showClassModal = false">Cancel</button>
-        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveClassAsync">@(_saving ? "Saving..." : "Save Class")</button>
-    </div>
-</Modal>
-
-@if (_years is null || _terms is null || _classes is null)
+@if (_years is null || _terms is null)
 {
     <p>Loading...</p>
 }
 else
 {
     <div class="dashboard-grid">
-        <DataTablePanel TItem="AcademicYearDto" Items="_years"
-                         Tabs="_yearTabs"
-                         SearchPredicate="@((y, q) => y.YearName.Contains(q, StringComparison.OrdinalIgnoreCase))"
-                         SearchPlaceholder="Search years..."
-                         Sort="SortYearItems">
-            <ChildContent Context="items">
-                <div class="table-scroll">
-                    <table class="pro-table">
-                        <thead>
-                            <tr>
-                                <SortableHeader Label="Year" Column="year" CurrentColumn="_yearSort" Ascending="_yearAsc" OnSort="SortYears" />
-                                <SortableHeader Label="Starts" Column="start" CurrentColumn="_yearSort" Ascending="_yearAsc" OnSort="SortYears" />
-                                <SortableHeader Label="Ends" Column="end" CurrentColumn="_yearSort" Ascending="_yearAsc" OnSort="SortYears" />
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var year in items)
-                            {
-                                <tr>
-                                    <td>@year.YearName</td>
-                                    <td>@year.StartDate.ToString("MMM d, yyyy")</td>
-                                    <td>@year.EndDate.ToString("MMM d, yyyy")</td>
-                                    <td>
-                                        @if (year.IsCurrent)
-                                        {
-                                            <span class="status-pill pill-green">Current</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="status-pill @(year.IsActive ? "pill-amber" : "pill-red")">@(year.IsActive ? "Active" : "Inactive")</span>
-                                        }
-                                    </td>
-                                </tr>
-                            }
-                            @if (items.Count == 0)
-                            {
-                                <tr class="empty-row"><td colspan="4">No academic years match.</td></tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </ChildContent>
-        </DataTablePanel>
+        <div class="section-tabs">
+            <button type="button" class="section-tab @(_activeSection == AcademicSection.Years ? "active" : "")" @onclick="ShowYearsSection">
+                Academic Year <span class="section-tab-count">(@_years.Count)</span>
+            </button>
+            <button type="button" class="section-tab @(_activeSection == AcademicSection.Terms ? "active" : "")" @onclick="ShowTermsSection">
+                Term <span class="section-tab-count">(@_terms.Count)</span>
+            </button>
+        </div>
 
-        <DataTablePanel TItem="TermDto" Items="_terms"
-                         Title="Terms"
-                         SearchPredicate="@((t, q) => t.TermName.Contains(q, StringComparison.OrdinalIgnoreCase))"
-                         SearchPlaceholder="Search terms..."
-                         Sort="SortTermItems">
-            <ChildContent Context="items">
-                <div class="table-scroll">
-                    <table class="pro-table">
-                        <thead>
-                            <tr>
-                                <SortableHeader Label="Term" Column="name" CurrentColumn="_termSort" Ascending="_termAsc" OnSort="SortTerms" />
-                                <SortableHeader Label="#" Column="number" CurrentColumn="_termSort" Ascending="_termAsc" OnSort="SortTerms" />
-                                <SortableHeader Label="Starts" Column="start" CurrentColumn="_termSort" Ascending="_termAsc" OnSort="SortTerms" />
-                                <SortableHeader Label="Ends" Column="end" CurrentColumn="_termSort" Ascending="_termAsc" OnSort="SortTerms" />
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var term in items)
-                            {
+        @if (_activeSection == AcademicSection.Years)
+        {
+            <DataTablePanel TItem="AcademicYearDto" Items="_years"
+                             Tabs="_yearTabs"
+                             SearchPredicate="@((y, q) => y.YearName.Contains(q, StringComparison.OrdinalIgnoreCase))"
+                             SearchPlaceholder="Search years..."
+                             Sort="SortYearItems">
+                <ChildContent Context="items">
+                    <div class="table-scroll">
+                        <table class="pro-table">
+                            <thead>
                                 <tr>
-                                    <td>@term.TermName</td>
-                                    <td>@term.TermNumber</td>
-                                    <td>@term.StartDate.ToString("MMM d, yyyy")</td>
-                                    <td>@term.EndDate.ToString("MMM d, yyyy")</td>
+                                    <SortableHeader Label="Year" Column="year" CurrentColumn="_yearSort" Ascending="_yearAsc" OnSort="SortYears" />
+                                    <SortableHeader Label="Starts" Column="start" CurrentColumn="_yearSort" Ascending="_yearAsc" OnSort="SortYears" />
+                                    <SortableHeader Label="Ends" Column="end" CurrentColumn="_yearSort" Ascending="_yearAsc" OnSort="SortYears" />
+                                    <th>Status</th>
+                                    <th>Action</th>
                                 </tr>
-                            }
-                            @if (items.Count == 0)
-                            {
-                                <tr class="empty-row"><td colspan="4">No terms match.</td></tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </ChildContent>
-        </DataTablePanel>
-
-        <DataTablePanel TItem="ClassDto" Items="_classes"
-                         Tabs="_classTabs"
-                         SearchPredicate="@((c, q) => c.ClassName.Contains(q, StringComparison.OrdinalIgnoreCase) || c.GradeLevel.Contains(q, StringComparison.OrdinalIgnoreCase))"
-                         SearchPlaceholder="Search classes..."
-                         Sort="SortClassItems">
-            <ChildContent Context="items">
-                <div class="table-scroll">
-                    <table class="pro-table">
-                        <thead>
-                            <tr>
-                                <SortableHeader Label="Class" Column="name" CurrentColumn="_classSort" Ascending="_classAsc" OnSort="SortClasses" />
-                                <SortableHeader Label="Grade Level" Column="grade" CurrentColumn="_classSort" Ascending="_classAsc" OnSort="SortClasses" />
-                                <th>Description</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var schoolClass in items)
-                            {
+                            </thead>
+                            <tbody>
+                                @foreach (var year in items)
+                                {
+                                    <tr>
+                                        <td>@year.YearName</td>
+                                        <td>@year.StartDate.ToString("MMM d, yyyy")</td>
+                                        <td>@year.EndDate.ToString("MMM d, yyyy")</td>
+                                        <td>
+                                            @if (year.IsCurrent)
+                                            {
+                                                <span class="status-pill pill-green">Current</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="status-pill @(year.IsActive ? "pill-amber" : "pill-red")">@(year.IsActive ? "Active" : "Inactive")</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="action-icons">
+                                                <button type="button" class="icon-btn-circle" title="Edit academic year" @onclick="() => OpenEditYearModal(year)">
+                                                    <i class="bi bi-pencil-fill"></i>
+                                                </button>
+                                                @if (year.IsCurrent)
+                                                {
+                                                    <span class="icon-btn-circle icon-btn-circle-disabled" title="Can't delete the current academic year — mark a different year as current first.">
+                                                        <i class="bi bi-trash"></i>
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <button type="button" class="icon-btn-circle icon-btn-circle-danger" title="Delete academic year" @onclick="() => DeleteYearAsync(year)">
+                                                        <i class="bi bi-trash-fill"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                                @if (items.Count == 0)
+                                {
+                                    <tr class="empty-row"><td colspan="5">No academic years match.</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </ChildContent>
+            </DataTablePanel>
+        }
+        else
+        {
+            <DataTablePanel TItem="TermDto" Items="_terms"
+                             Title="Terms"
+                             SearchPredicate="@((t, q) => t.TermName.Contains(q, StringComparison.OrdinalIgnoreCase))"
+                             SearchPlaceholder="Search terms..."
+                             Sort="SortTermItems">
+                <ChildContent Context="items">
+                    <div class="table-scroll">
+                        <table class="pro-table">
+                            <thead>
                                 <tr>
-                                    <td>@schoolClass.ClassName</td>
-                                    <td>@schoolClass.GradeLevel</td>
-                                    <td>@(schoolClass.Description ?? "—")</td>
-                                    <td><span class="status-pill @(schoolClass.IsActive ? "pill-green" : "pill-red")">@(schoolClass.IsActive ? "Active" : "Inactive")</span></td>
+                                    <SortableHeader Label="Term" Column="name" CurrentColumn="_termSort" Ascending="_termAsc" OnSort="SortTerms" />
+                                    <SortableHeader Label="#" Column="number" CurrentColumn="_termSort" Ascending="_termAsc" OnSort="SortTerms" />
+                                    <SortableHeader Label="Starts" Column="start" CurrentColumn="_termSort" Ascending="_termAsc" OnSort="SortTerms" />
+                                    <SortableHeader Label="Ends" Column="end" CurrentColumn="_termSort" Ascending="_termAsc" OnSort="SortTerms" />
+                                    <th>Status</th>
+                                    <th>Action</th>
                                 </tr>
-                            }
-                            @if (items.Count == 0)
-                            {
-                                <tr class="empty-row"><td colspan="4">No classes match.</td></tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </ChildContent>
-        </DataTablePanel>
+                            </thead>
+                            <tbody>
+                                @foreach (var term in items)
+                                {
+                                    <tr>
+                                        <td>@term.TermName</td>
+                                        <td>@term.TermNumber</td>
+                                        <td>@term.StartDate.ToString("MMM d, yyyy")</td>
+                                        <td>@term.EndDate.ToString("MMM d, yyyy")</td>
+                                        <td>
+                                            @if (term.IsCurrent)
+                                            {
+                                                <span class="status-pill pill-green">Current</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="status-pill @(term.IsActive ? "pill-amber" : "pill-red")">@(term.IsActive ? "Active" : "Inactive")</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="action-icons">
+                                                <button type="button" class="icon-btn-circle" title="Edit term" @onclick="() => OpenEditTermModal(term)">
+                                                    <i class="bi bi-pencil-fill"></i>
+                                                </button>
+                                                @if (term.IsCurrent)
+                                                {
+                                                    <span class="icon-btn-circle icon-btn-circle-disabled" title="Can't delete the current term — mark a different term as current first.">
+                                                        <i class="bi bi-trash"></i>
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <button type="button" class="icon-btn-circle icon-btn-circle-danger" title="Delete term" @onclick="() => DeleteTermAsync(term)">
+                                                        <i class="bi bi-trash-fill"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                                @if (items.Count == 0)
+                                {
+                                    <tr class="empty-row"><td colspan="6">No terms match.</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </ChildContent>
+            </DataTablePanel>
+        }
     </div>
 }
 
 @code {
+    private enum AcademicSection { Years, Terms }
+
     private List<AcademicYearDto>? _years;
     private List<TermDto>? _terms;
-    private List<ClassDto>? _classes;
+
+    private AcademicSection _activeSection = AcademicSection.Years;
 
     private string _yearSort = "start";
     private bool _yearAsc = false;
     private string _termSort = "number";
     private bool _termAsc = true;
-    private string _classSort = "name";
-    private bool _classAsc = true;
 
     private List<TableTab<AcademicYearDto>> _yearTabs = [];
-    private List<TableTab<ClassDto>> _classTabs = [];
 
     private List<AddMenuItem> _addOptions = [];
     private bool _showYearModal;
     private bool _showTermModal;
-    private bool _showClassModal;
     private bool _saving;
+    private int? _editingYearId;
+    private int? _editingTermId;
     private string? _yearFormError;
     private string? _termFormError;
-    private string? _classFormError;
     private YearFormModel _yearForm = new();
     private TermFormModel _termForm = new();
-    private ClassFormModel _classForm = new();
 
     protected override async Task OnInitializedAsync()
     {
         _years = await Mediator.Send(new GetAcademicYearsListQuery());
         _terms = await Mediator.Send(new GetTermsListQuery());
-        _classes = await Mediator.Send(new GetClassesListQuery());
 
         _addOptions =
         [
             new("Add Academic Year", EventCallback.Factory.Create(this, OpenYearModal)),
             new("Add Term", EventCallback.Factory.Create(this, OpenTermModal)),
-            new("Add Class", EventCallback.Factory.Create(this, OpenClassModal)),
         ];
 
         _yearTabs =
@@ -279,14 +292,11 @@ else
             new("active", "Active", y => y.IsActive && !y.IsCurrent),
             new("inactive", "Inactive", y => !y.IsActive),
         ];
-
-        _classTabs =
-        [
-            new("all", "All"),
-            new("active", "Active", c => c.IsActive),
-            new("inactive", "Inactive", c => !c.IsActive),
-        ];
     }
+
+    private void ShowYearsSection() => _activeSection = AcademicSection.Years;
+
+    private void ShowTermsSection() => _activeSection = AcademicSection.Terms;
 
     private void SortYears(string column)
     {
@@ -298,12 +308,6 @@ else
     {
         _termAsc = _termSort == column ? !_termAsc : true;
         _termSort = column;
-    }
-
-    private void SortClasses(string column)
-    {
-        _classAsc = _classSort == column ? !_classAsc : true;
-        _classSort = column;
     }
 
     private List<AcademicYearDto> SortYearItems(IReadOnlyList<AcademicYearDto> items)
@@ -329,42 +333,54 @@ else
         return (_termAsc ? query : query.Reverse()).ToList();
     }
 
-    private List<ClassDto> SortClassItems(IReadOnlyList<ClassDto> items)
-    {
-        IEnumerable<ClassDto> query = _classSort switch
-        {
-            "grade" => items.OrderBy(c => c.GradeLevel),
-            _ => items.OrderBy(c => c.ClassName),
-        };
-        return (_classAsc ? query : query.Reverse()).ToList();
-    }
-
     private async Task RefreshAsync()
     {
         _years = await Mediator.Send(new GetAcademicYearsListQuery());
         _terms = await Mediator.Send(new GetTermsListQuery());
-        _classes = await Mediator.Send(new GetClassesListQuery());
     }
 
     private void OpenYearModal()
     {
+        _editingYearId = null;
         _yearForm = new YearFormModel();
+        _yearFormError = null;
+        _showYearModal = true;
+    }
+
+    private void OpenEditYearModal(AcademicYearDto year)
+    {
+        _editingYearId = year.Id;
+        _yearForm = new YearFormModel
+        {
+            YearName = year.YearName,
+            StartDate = year.StartDate.ToDateTime(TimeOnly.MinValue),
+            EndDate = year.EndDate.ToDateTime(TimeOnly.MinValue),
+        };
         _yearFormError = null;
         _showYearModal = true;
     }
 
     private void OpenTermModal()
     {
+        _editingTermId = null;
         _termForm = new TermFormModel();
         _termFormError = null;
         _showTermModal = true;
     }
 
-    private void OpenClassModal()
+    private void OpenEditTermModal(TermDto term)
     {
-        _classForm = new ClassFormModel();
-        _classFormError = null;
-        _showClassModal = true;
+        _editingTermId = term.Id;
+        _termForm = new TermFormModel
+        {
+            AcademicYearId = term.AcademicYearId,
+            TermName = term.TermName,
+            TermNumber = term.TermNumber,
+            StartDate = term.StartDate.ToDateTime(TimeOnly.MinValue),
+            EndDate = term.EndDate.ToDateTime(TimeOnly.MinValue),
+        };
+        _termFormError = null;
+        _showTermModal = true;
     }
 
     private async Task SaveYearAsync()
@@ -373,16 +389,25 @@ else
         _saving = true;
         try
         {
-            var command = new CreateAcademicYearCommand(_yearForm.YearName, DateOnly.FromDateTime(_yearForm.StartDate), DateOnly.FromDateTime(_yearForm.EndDate));
-            var result = await Mediator.Send(command);
+            var startDate = DateOnly.FromDateTime(_yearForm.StartDate);
+            var endDate = DateOnly.FromDateTime(_yearForm.EndDate);
+
+            Result result = _editingYearId.HasValue
+                ? await Mediator.Send(new UpdateAcademicYearCommand(_editingYearId.Value, _yearForm.YearName, startDate, endDate))
+                : await Mediator.Send(new CreateAcademicYearCommand(_yearForm.YearName, startDate, endDate));
+
             if (!result.Succeeded)
             {
                 _yearFormError = string.Join(" ", result.Errors);
                 return;
             }
+
             _showYearModal = false;
+            var wasEditing = _editingYearId.HasValue;
             await RefreshAsync();
-            Toast.ShowSuccess("Academic year added", $"{_yearForm.YearName} has been created.");
+            Toast.ShowSuccess(
+                wasEditing ? "Academic year updated" : "Academic year added",
+                wasEditing ? $"{_yearForm.YearName}'s details were saved." : $"{_yearForm.YearName} has been created.");
         }
         catch (ValidationException ex)
         {
@@ -391,6 +416,30 @@ else
         finally
         {
             _saving = false;
+        }
+    }
+
+    private async Task DeleteYearAsync(AcademicYearDto year)
+    {
+        var confirmed = await Confirm.ConfirmAsync(
+            "Delete this academic year?",
+            $"{year.YearName} will be marked inactive. Terms and records under it are kept.",
+            confirmText: "Delete");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var result = await Mediator.Send(new DeactivateAcademicYearCommand(year.Id));
+        if (result.Succeeded)
+        {
+            Toast.ShowSuccess("Academic year deleted", $"{year.YearName} has been removed.");
+            await RefreshAsync();
+        }
+        else
+        {
+            Toast.ShowError("Couldn't delete academic year", string.Join(" ", result.Errors));
         }
     }
 
@@ -406,16 +455,25 @@ else
                 return;
             }
 
-            var command = new CreateTermCommand(_termForm.AcademicYearId, _termForm.TermName, _termForm.TermNumber, DateOnly.FromDateTime(_termForm.StartDate), DateOnly.FromDateTime(_termForm.EndDate));
-            var result = await Mediator.Send(command);
+            var startDate = DateOnly.FromDateTime(_termForm.StartDate);
+            var endDate = DateOnly.FromDateTime(_termForm.EndDate);
+
+            Result result = _editingTermId.HasValue
+                ? await Mediator.Send(new UpdateTermCommand(_editingTermId.Value, _termForm.TermName, _termForm.TermNumber, startDate, endDate))
+                : await Mediator.Send(new CreateTermCommand(_termForm.AcademicYearId, _termForm.TermName, _termForm.TermNumber, startDate, endDate));
+
             if (!result.Succeeded)
             {
                 _termFormError = string.Join(" ", result.Errors);
                 return;
             }
+
             _showTermModal = false;
+            var wasEditing = _editingTermId.HasValue;
             await RefreshAsync();
-            Toast.ShowSuccess("Term added", $"{_termForm.TermName} has been created.");
+            Toast.ShowSuccess(
+                wasEditing ? "Term updated" : "Term added",
+                wasEditing ? $"{_termForm.TermName}'s details were saved." : $"{_termForm.TermName} has been created.");
         }
         catch (ValidationException ex)
         {
@@ -427,30 +485,27 @@ else
         }
     }
 
-    private async Task SaveClassAsync()
+    private async Task DeleteTermAsync(TermDto term)
     {
-        _classFormError = null;
-        _saving = true;
-        try
+        var confirmed = await Confirm.ConfirmAsync(
+            "Delete this term?",
+            $"{term.TermName} will be marked inactive. Evaluation records under it are kept.",
+            confirmText: "Delete");
+
+        if (!confirmed)
         {
-            var command = new CreateClassCommand(_classForm.ClassName, _classForm.GradeLevel, string.IsNullOrWhiteSpace(_classForm.Description) ? null : _classForm.Description);
-            var result = await Mediator.Send(command);
-            if (!result.Succeeded)
-            {
-                _classFormError = string.Join(" ", result.Errors);
-                return;
-            }
-            _showClassModal = false;
+            return;
+        }
+
+        var result = await Mediator.Send(new DeactivateTermCommand(term.Id));
+        if (result.Succeeded)
+        {
+            Toast.ShowSuccess("Term deleted", $"{term.TermName} has been removed.");
             await RefreshAsync();
-            Toast.ShowSuccess("Class added", $"{_classForm.ClassName} has been created.");
         }
-        catch (ValidationException ex)
+        else
         {
-            _classFormError = string.Join(" ", ex.Errors.SelectMany(e => e.Value));
-        }
-        finally
-        {
-            _saving = false;
+            Toast.ShowError("Couldn't delete term", string.Join(" ", result.Errors));
         }
     }
 
@@ -468,12 +523,5 @@ else
         public int TermNumber { get; set; } = 1;
         public DateTime StartDate { get; set; } = DateTime.Today;
         public DateTime EndDate { get; set; } = DateTime.Today.AddMonths(3);
-    }
-
-    private class ClassFormModel
-    {
-        public string ClassName { get; set; } = string.Empty;
-        public string GradeLevel { get; set; } = string.Empty;
-        public string? Description { get; set; }
     }
 }

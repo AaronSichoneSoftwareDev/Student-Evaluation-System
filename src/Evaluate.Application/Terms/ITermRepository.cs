@@ -5,7 +5,11 @@ namespace Evaluate.Application.Terms;
 
 public interface ITermRepository
 {
-    Task<bool> ExistsAsync(int academicYearId, int termNumber, CancellationToken cancellationToken = default);
+    /// <summary>Pass <paramref name="excludeId"/> when checking on an update, so the entity
+    /// being edited doesn't collide with itself.</summary>
+    Task<bool> ExistsAsync(int academicYearId, int termNumber, int? excludeId = null, CancellationToken cancellationToken = default);
+
+    Task<bool> ExistsByNameAsync(int academicYearId, string termName, int? excludeId = null, CancellationToken cancellationToken = default);
 
     Task<TermEntity?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 

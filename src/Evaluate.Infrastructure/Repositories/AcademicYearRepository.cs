@@ -11,8 +11,8 @@ public class AcademicYearRepository(IApplicationDbContext context) : IAcademicYe
     public Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default) =>
         context.AcademicYears.AnyAsync(y => y.Id == id, cancellationToken);
 
-    public Task<bool> ExistsByNameAsync(string yearName, CancellationToken cancellationToken = default) =>
-        context.AcademicYears.AnyAsync(y => y.YearName == yearName, cancellationToken);
+    public Task<bool> ExistsByNameAsync(string yearName, int? excludeId = null, CancellationToken cancellationToken = default) =>
+        context.AcademicYears.AnyAsync(y => y.YearName == yearName && y.Id != excludeId, cancellationToken);
 
     public Task<AcademicYearEntity?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
         context.AcademicYears.FirstOrDefaultAsync(y => y.Id == id, cancellationToken);

@@ -15,4 +15,8 @@ public interface IEnrollmentRepository
     Task<List<EnrollmentDto>> GetListAsync(int? studentId, int? academicYearId, int? classId, CancellationToken cancellationToken = default);
 
     Task<List<int>> GetActiveStudentIdsAsync(int classId, int academicYearId, CancellationToken cancellationToken = default);
+
+    /// <summary>Total pupils actively enrolled (and therefore eligible for evaluation) across
+    /// every class for the given academic year — a single indexed COUNT, not a full row load.</summary>
+    Task<int> CountActiveByAcademicYearAsync(int academicYearId, CancellationToken cancellationToken = default);
 }

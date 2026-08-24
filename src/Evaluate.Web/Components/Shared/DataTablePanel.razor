@@ -35,6 +35,12 @@
         <div class="table-pagination">
             <span class="table-pagination-info">Showing @FirstItemIndex&ndash;@LastItemIndex of @SortedItems.Count</span>
             <div class="table-pagination-controls">
+                @if (EffectivePage > 1)
+                {
+                    <button type="button" class="page-btn" title="First page" @onclick="() => GoToPage(1)">
+                        <i class="bi bi-chevron-double-left"></i>
+                    </button>
+                }
                 <button type="button" class="page-btn" disabled="@(EffectivePage == 1)" @onclick="() => GoToPage(EffectivePage - 1)">
                     <i class="bi bi-chevron-left"></i>
                 </button>
@@ -45,6 +51,12 @@
                 <button type="button" class="page-btn" disabled="@(EffectivePage == TotalPages)" @onclick="() => GoToPage(EffectivePage + 1)">
                     <i class="bi bi-chevron-right"></i>
                 </button>
+                @if (EffectivePage < TotalPages)
+                {
+                    <button type="button" class="page-btn" title="Last page" @onclick="() => GoToPage(TotalPages)">
+                        <i class="bi bi-chevron-double-right"></i>
+                    </button>
+                }
             </div>
         </div>
     }
@@ -66,6 +78,11 @@
     [Parameter]
     public string SearchPlaceholder { get; set; } = "Search...";
 
+    /// <summary>Pre-fills the search box — e.g. from a query string parameter carried over from
+    /// the topbar search — without needing the caller to reach into this component's state.</summary>
+    [Parameter]
+    public string? InitialSearchTerm { get; set; }
+
     /// <summary>Applied after tab/search filtering and before pagination. Pass the page's own
     /// column-sort function here instead of sorting inside <see cref="ChildContent"/> — sorting
     /// after paging would only reorder whichever page happens to be showing.</summary>
@@ -81,6 +98,14 @@
     private string _activeTab = "all";
     private string _searchText = string.Empty;
     private int _currentPage = 1;
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrWhiteSpace(InitialSearchTerm))
+        {
+            _searchText = InitialSearchTerm;
+        }
+    }
 
     private IReadOnlyList<TItem> FilteredItems
     {
@@ -117,7 +142,24 @@
 
     private int LastItemIndex => Math.Min(EffectivePage * PageSize, SortedItems.Count);
 
-    private IEnumerable<int> PageNumbers => Enumerable.Range(1, TotalPages);
+    /// <summary>Number of page buttons shown at once — beyond this, older page numbers slide
+    /// out of view as the current page advances, rather than listing every page at once
+    /// (which reads as unprofessional once a table has more than a handful of pages).</summary>
+    private const int PageWindowSize = 5;
+
+    private IEnumerable<int> PageNumbers
+    {
+        get
+        {
+            if (TotalPages <= PageWindowSize)
+            {
+                return Enumerable.Range(1, TotalPages);
+            }
+
+            var start = Math.Clamp(EffectivePage - (PageWindowSize / 2), 1, TotalPages - PageWindowSize + 1);
+            return Enumerable.Range(start, PageWindowSize);
+        }
+    }
 
     private void SetTab(string key)
     {

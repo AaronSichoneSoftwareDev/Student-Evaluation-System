@@ -9,7 +9,7 @@ public class CreateAcademicYearCommandHandler(IAcademicYearRepository academicYe
 {
     public async Task<Result<int>> Handle(CreateAcademicYearCommand request, CancellationToken cancellationToken)
     {
-        var alreadyExists = await academicYears.ExistsByNameAsync(request.YearName, cancellationToken);
+        var alreadyExists = await academicYears.ExistsByNameAsync(request.YearName, cancellationToken: cancellationToken);
         if (alreadyExists)
         {
             return Result<int>.Failure($"An academic year named '{request.YearName}' already exists.");

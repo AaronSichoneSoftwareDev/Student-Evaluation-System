@@ -15,5 +15,9 @@ public class StudentEnrollmentConfiguration : IEntityTypeConfiguration<StudentEn
         // lookups (this student's active enrollment) are both hot paths — index both directions.
         builder.HasIndex(e => new { e.ClassId, e.AcademicYearId, e.Status });
         builder.HasIndex(e => new { e.StudentId, e.AcademicYearId, e.Status });
+
+        // Year-wide "how many pupils are eligible for evaluation" counts (dashboard stat) scan
+        // by year + status without a class/student filter — index that shape too.
+        builder.HasIndex(e => new { e.AcademicYearId, e.Status });
     }
 }

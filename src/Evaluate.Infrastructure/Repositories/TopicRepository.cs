@@ -10,8 +10,11 @@ public class TopicRepository(IApplicationDbContext context) : ITopicRepository
 {
     public void Add(TopicEntity topic) => context.Topics.Add(topic);
 
+    public Task<TopicEntity?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
+        context.Topics.FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
+
     public Task<int> CountValidForCourseAsync(List<int> topicIds, int courseId, CancellationToken cancellationToken = default) =>
-        context.Topics.CountAsync(t => topicIds.Contains(t.Id) && t.CourseId == courseId, cancellationToken);
+        context.Topics.CountAsync(t => topicIds.Contains(t.Id) && t.CourseId == courseId && t.IsActive, cancellationToken);
 
     public Task<List<TopicDto>> GetListAsync(int? courseId, CancellationToken cancellationToken = default)
     {

@@ -6,6 +6,8 @@
 @using Evaluate.Application.Courses.Commands.DeactivateCourse
 @using Evaluate.Application.Topics.Queries.GetTopicsList
 @using Evaluate.Application.Topics.Commands.CreateTopic
+@using Evaluate.Application.Topics.Commands.UpdateTopic
+@using Evaluate.Application.Topics.Commands.DeactivateTopic
 @using Evaluate.Application.Common.Exceptions
 @using Evaluate.Application.Common.Models
 @using MediatR
@@ -35,6 +37,35 @@
         <label class="form-label">Description (optional)</label>
         <input class="form-control" @bind="_courseForm.Description" />
     </div>
+
+    @if (_editingCourseId.HasValue)
+    {
+        <div class="form-group">
+            <label class="form-label">Topics in this course</label>
+            @{
+                var courseTopics = (_topics ?? []).Where(t => t.CourseId == _editingCourseId.Value && t.IsActive).OrderBy(t => t.TopicOrder).ToList();
+            }
+            @if (courseTopics.Count == 0)
+            {
+                <p style="color:var(--muted);font-size:0.85rem;margin:0;">No topics yet — add one from the Topics panel after saving.</p>
+            }
+            else
+            {
+                <ul class="topic-chip-list">
+                    @foreach (var topic in courseTopics)
+                    {
+                        <li class="topic-chip">
+                            <span>@topic.TopicOrder. @topic.TopicName</span>
+                            <button type="button" class="topic-chip-remove" title="Remove topic" @onclick="() => RemoveTopicAsync(topic)">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+
     @if (_courseFormError is not null)
     {
         <p class="form-error">@_courseFormError</p>
@@ -47,10 +78,12 @@
     </div>
 </Modal>
 
-<Modal IsVisible="_showTopicModal" Title="Add Topic" Subtitle="Add a topic taught within a course." OnClose="() => _showTopicModal = false">
+<Modal IsVisible="_showTopicModal" Title="@(_editingTopicId.HasValue ? "Edit Topic" : "Add Topic")"
+       Subtitle="@(_editingTopicId.HasValue ? "Update this topic's details." : "Add a topic taught within a course.")"
+       OnClose="() => _showTopicModal = false">
     <div class="form-group">
         <label class="form-label">Course</label>
-        <select class="form-control" @bind="_topicForm.CourseId">
+        <select class="form-control" @bind="_topicForm.CourseId" disabled="@_editingTopicId.HasValue">
             <option value="0">Select a course...</option>
             @foreach (var course in _courses ?? [])
             {
@@ -78,7 +111,9 @@
     }
     <div class="form-actions">
         <button type="button" class="btn-secondary" @onclick="() => _showTopicModal = false">Cancel</button>
-        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveTopicAsync">@(_saving ? "Saving..." : "Save Topic")</button>
+        <button type="button" class="btn-primary" disabled="@_saving" @onclick="SaveTopicAsync">
+            @(_saving ? "Saving..." : _editingTopicId.HasValue ? "Save Changes" : "Save Topic")
+        </button>
     </div>
 </Modal>
 
@@ -89,6 +124,17 @@
 else
 {
     <div class="dashboard-grid">
+        <div class="section-tabs">
+            <button type="button" class="section-tab @(_activeSection == CourseSection.Courses ? "active" : "")" @onclick="ShowCoursesSection">
+                Course <span class="section-tab-count">(@_courses.Count)</span>
+            </button>
+            <button type="button" class="section-tab @(_activeSection == CourseSection.Topics ? "active" : "")" @onclick="ShowTopicsSection">
+                Topics <span class="section-tab-count">(@_topics.Count)</span>
+            </button>
+        </div>
+
+        @if (_activeSection == CourseSection.Courses)
+        {
         <DataTablePanel TItem="CourseDto" Items="_courses"
                          Tabs="_courseTabs"
                          SearchPredicate="@((c, q) => c.CourseName.Contains(q, StringComparison.OrdinalIgnoreCase) || c.CourseCode.Contains(q, StringComparison.OrdinalIgnoreCase))"
@@ -142,7 +188,9 @@ else
                 </div>
             </ChildContent>
         </DataTablePanel>
-
+        }
+        else
+        {
         <DataTablePanel TItem="TopicDto" Items="_topics"
                          Title="Topics"
                          SearchPredicate="@((t, q) => t.TopicName.Contains(q, StringComparison.OrdinalIgnoreCase))"
@@ -156,6 +204,8 @@ else
                                 <SortableHeader Label="#" Column="order" CurrentColumn="_topicSort" Ascending="_topicAsc" OnSort="SortTopics" />
                                 <SortableHeader Label="Topic" Column="name" CurrentColumn="_topicSort" Ascending="_topicAsc" OnSort="SortTopics" />
                                 <th>Course</th>
+                                <th>Status</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -165,23 +215,42 @@ else
                                     <td>@topic.TopicOrder</td>
                                     <td>@topic.TopicName</td>
                                     <td>@CourseName(topic.CourseId)</td>
+                                    <td><span class="status-pill @(topic.IsActive ? "pill-green" : "pill-red")">@(topic.IsActive ? "Active" : "Removed")</span></td>
+                                    <td>
+                                        <div class="action-icons">
+                                            <button type="button" class="icon-btn-circle" title="Edit topic" @onclick="() => OpenEditTopicModal(topic)">
+                                                <i class="bi bi-pencil-fill"></i>
+                                            </button>
+                                            @if (topic.IsActive)
+                                            {
+                                                <button type="button" class="icon-btn-circle icon-btn-circle-danger" title="Remove topic" @onclick="() => RemoveTopicAsync(topic)">
+                                                    <i class="bi bi-trash-fill"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
                                 </tr>
                             }
                             @if (items.Count == 0)
                             {
-                                <tr class="empty-row"><td colspan="3">No topics match.</td></tr>
+                                <tr class="empty-row"><td colspan="5">No topics match.</td></tr>
                             }
                         </tbody>
                     </table>
                 </div>
             </ChildContent>
         </DataTablePanel>
+        }
     </div>
 }
 
 @code {
+    private enum CourseSection { Courses, Topics }
+
     private List<CourseDto>? _courses;
     private List<TopicDto>? _topics;
+
+    private CourseSection _activeSection = CourseSection.Courses;
 
     private string _courseSort = "name";
     private bool _courseAsc = true;
@@ -195,6 +264,7 @@ else
     private bool _showTopicModal;
     private bool _saving;
     private int? _editingCourseId;
+    private int? _editingTopicId;
     private string? _courseFormError;
     private string? _topicFormError;
     private CourseFormModel _courseForm = new();
@@ -218,6 +288,10 @@ else
             new("inactive", "Inactive", c => !c.IsActive),
         ];
     }
+
+    private void ShowCoursesSection() => _activeSection = CourseSection.Courses;
+
+    private void ShowTopicsSection() => _activeSection = CourseSection.Topics;
 
     private void SortCourses(string column)
     {
@@ -282,7 +356,22 @@ else
 
     private void OpenTopicModal()
     {
+        _editingTopicId = null;
         _topicForm = new TopicFormModel();
+        _topicFormError = null;
+        _showTopicModal = true;
+    }
+
+    private void OpenEditTopicModal(TopicDto topic)
+    {
+        _editingTopicId = topic.Id;
+        _topicForm = new TopicFormModel
+        {
+            CourseId = topic.CourseId,
+            TopicName = topic.TopicName,
+            TopicOrder = topic.TopicOrder,
+            Description = topic.Description,
+        };
         _topicFormError = null;
         _showTopicModal = true;
     }
@@ -372,16 +461,24 @@ else
                 return;
             }
 
-            var command = new CreateTopicCommand(_topicForm.CourseId, _topicForm.TopicName, _topicForm.TopicOrder, string.IsNullOrWhiteSpace(_topicForm.Description) ? null : _topicForm.Description);
-            var result = await Mediator.Send(command);
+            var description = string.IsNullOrWhiteSpace(_topicForm.Description) ? null : _topicForm.Description;
+
+            Result result = _editingTopicId.HasValue
+                ? await Mediator.Send(new UpdateTopicCommand(_editingTopicId.Value, _topicForm.TopicName, _topicForm.TopicOrder, description))
+                : await Mediator.Send(new CreateTopicCommand(_topicForm.CourseId, _topicForm.TopicName, _topicForm.TopicOrder, description));
+
             if (!result.Succeeded)
             {
                 _topicFormError = string.Join(" ", result.Errors);
                 return;
             }
+
             _showTopicModal = false;
+            var wasEditing = _editingTopicId.HasValue;
             await RefreshAsync();
-            Toast.ShowSuccess("Topic added", $"{_topicForm.TopicName} has been created.");
+            Toast.ShowSuccess(
+                wasEditing ? "Topic updated" : "Topic added",
+                wasEditing ? $"{_topicForm.TopicName}'s details were saved." : $"{_topicForm.TopicName} has been created.");
         }
         catch (ValidationException ex)
         {
@@ -390,6 +487,30 @@ else
         finally
         {
             _saving = false;
+        }
+    }
+
+    private async Task RemoveTopicAsync(TopicDto topic)
+    {
+        var confirmed = await Confirm.ConfirmAsync(
+            "Remove this topic?",
+            $"{topic.TopicName} will no longer be scored during evaluations. Past evaluation results for it are kept.",
+            confirmText: "Remove Topic");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var result = await Mediator.Send(new DeactivateTopicCommand(topic.Id));
+        if (result.Succeeded)
+        {
+            Toast.ShowSuccess("Topic removed", $"{topic.TopicName} has been removed from the course.");
+            await RefreshAsync();
+        }
+        else
+        {
+            Toast.ShowError("Couldn't remove topic", string.Join(" ", result.Errors));
         }
     }
 

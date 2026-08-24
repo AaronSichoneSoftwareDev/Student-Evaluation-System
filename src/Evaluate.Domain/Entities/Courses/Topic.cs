@@ -33,5 +33,17 @@ public class Topic : BaseAuditableEntity
         return new Topic(courseId, topicName.Trim(), description?.Trim(), topicOrder);
     }
 
+    public void Update(string topicName, int topicOrder, string? description)
+    {
+        if (string.IsNullOrWhiteSpace(topicName))
+        {
+            throw new ArgumentException("Topic name is required.", nameof(topicName));
+        }
+
+        TopicName = topicName.Trim();
+        TopicOrder = topicOrder;
+        Description = description?.Trim();
+    }
+
     public void Deactivate() => IsActive = false;
 }

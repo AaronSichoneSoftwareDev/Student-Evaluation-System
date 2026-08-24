@@ -14,7 +14,7 @@
 
 <PageTitle>Staff - Evaluate</PageTitle>
 
-<PageHeader Title="Staff" Subtitle="System users and their course assignments."
+<PageHeader Title="Staff" Subtitle="System users — teachers show the classes they're assigned to."
             AddOptions="_addOptions" OnRefresh="RefreshAsync" />
 
 <Modal IsVisible="_showUserModal" Title="Add User" Subtitle="Create a new administrator or teacher account." OnClose="() => _showUserModal = false">
@@ -126,6 +126,7 @@ else
                                 <SortableHeader Label="Name" Column="name" CurrentColumn="_userSort" Ascending="_userAsc" OnSort="SortUsers" />
                                 <th>Email</th>
                                 <th>Role</th>
+                                <th>Class</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -141,46 +142,13 @@ else
                                     </td>
                                     <td>@user.Email</td>
                                     <td>@string.Join(", ", user.Roles)</td>
+                                    <td>@(user.Roles.Contains("Teacher") ? AssignedClassNames(user.Id) : "—")</td>
                                     <td><span class="status-pill @(user.IsActive ? "pill-green" : "pill-red")">@(user.IsActive ? "Active" : "Inactive")</span></td>
                                 </tr>
                             }
                             @if (items.Count == 0)
                             {
-                                <tr class="empty-row"><td colspan="4">No users match.</td></tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </ChildContent>
-        </DataTablePanel>
-
-        <DataTablePanel TItem="TeacherCourseDto" Items="_assignments"
-                         Tabs="_assignmentTabs"
-                         SearchPredicate="@((a, q) => (a.TeacherName ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) || a.CourseName.Contains(q, StringComparison.OrdinalIgnoreCase))"
-                         SearchPlaceholder="Search assignments..."
-                         Sort="SortAssignmentItems">
-            <ChildContent Context="items">
-                <div class="table-scroll">
-                    <table class="pro-table">
-                        <thead>
-                            <tr>
-                                <SortableHeader Label="Teacher" Column="teacher" CurrentColumn="_assignmentSort" Ascending="_assignmentAsc" OnSort="SortAssignments" />
-                                <SortableHeader Label="Course" Column="course" CurrentColumn="_assignmentSort" Ascending="_assignmentAsc" OnSort="SortAssignments" />
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var assignment in items)
-                            {
-                                <tr>
-                                    <td>@(assignment.TeacherName ?? "Unknown")</td>
-                                    <td>@assignment.CourseName</td>
-                                    <td><span class="status-pill @(assignment.IsActive ? "pill-green" : "pill-red")">@(assignment.IsActive ? "Active" : "Inactive")</span></td>
-                                </tr>
-                            }
-                            @if (items.Count == 0)
-                            {
-                                <tr class="empty-row"><td colspan="3">No assignments match.</td></tr>
+                                <tr class="empty-row"><td colspan="5">No users match.</td></tr>
                             }
                         </tbody>
                     </table>
@@ -196,11 +164,8 @@ else
 
     private string _userSort = "name";
     private bool _userAsc = true;
-    private string _assignmentSort = "teacher";
-    private bool _assignmentAsc = true;
 
     private List<TableTab<UserSummary>> _userTabs = [];
-    private List<TableTab<TeacherCourseDto>> _assignmentTabs = [];
 
     private List<CourseDto>? _courses;
     private List<AcademicYearDto>? _years;
@@ -235,13 +200,6 @@ else
             new("administrator", "Administrators", u => u.Roles.Contains("Administrator")),
             new("teacher", "Teachers", u => u.Roles.Contains("Teacher")),
         ];
-
-        _assignmentTabs =
-        [
-            new("all", "All"),
-            new("active", "Active", a => a.IsActive),
-            new("inactive", "Inactive", a => !a.IsActive),
-        ];
     }
 
     private void SortUsers(string column)
@@ -250,26 +208,25 @@ else
         _userSort = column;
     }
 
-    private void SortAssignments(string column)
-    {
-        _assignmentAsc = _assignmentSort == column ? !_assignmentAsc : true;
-        _assignmentSort = column;
-    }
-
     private List<UserSummary> SortUserItems(IReadOnlyList<UserSummary> items)
     {
         var query = items.OrderBy(u => u.LastName).ThenBy(u => u.FirstName);
         return (_userAsc ? query : query.Reverse()).ToList();
     }
 
-    private List<TeacherCourseDto> SortAssignmentItems(IReadOnlyList<TeacherCourseDto> items)
+    private string AssignedClassNames(string teacherUserId)
     {
-        IEnumerable<TeacherCourseDto> query = _assignmentSort switch
-        {
-            "course" => items.OrderBy(a => a.CourseName),
-            _ => items.OrderBy(a => a.TeacherName),
-        };
-        return (_assignmentAsc ? query : query.Reverse()).ToList();
+        var classIds = (_assignments ?? [])
+            .Where(a => a.TeacherUserId == teacherUserId && a.IsActive)
+            .Select(a => a.ClassId)
+            .Distinct();
+
+        var names = classIds
+            .Select(id => _classes?.FirstOrDefault(c => c.Id == id)?.ClassName)
+            .Where(name => name is not null)
+            .OrderBy(name => name);
+
+        return names.Any() ? string.Join(", ", names) : "—";
     }
 
     private static string Initials(string firstName, string lastName)

@@ -58,7 +58,7 @@ window.dashboardCharts = (function () {
                 plugins: { legend: { display: false } },
                 scales: {
                     x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-                    y: { grid: { color: '#eef0f6' }, ticks: { font: { size: 10 } } },
+                    y: { grid: { color: '#E2E4F0' }, ticks: { font: { size: 10 } } },
                 },
             },
         });
@@ -86,7 +86,7 @@ window.dashboardCharts = (function () {
                 plugins: { legend: { display: false } },
                 scales: {
                     x: { grid: { display: false }, ticks: { display: showAxes !== false, font: { size: 10 } } },
-                    y: { display: showAxes !== false, grid: { color: '#eef0f6' }, ticks: { font: { size: 10 } } },
+                    y: { display: showAxes !== false, grid: { color: '#E2E4F0' }, ticks: { font: { size: 10 } } },
                 },
             },
         });

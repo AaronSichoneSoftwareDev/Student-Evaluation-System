@@ -8,8 +8,11 @@ namespace Evaluate.Infrastructure.Repositories;
 
 public class TermRepository(IApplicationDbContext context) : ITermRepository
 {
-    public Task<bool> ExistsAsync(int academicYearId, int termNumber, CancellationToken cancellationToken = default) =>
-        context.Terms.AnyAsync(t => t.AcademicYearId == academicYearId && t.TermNumber == termNumber, cancellationToken);
+    public Task<bool> ExistsAsync(int academicYearId, int termNumber, int? excludeId = null, CancellationToken cancellationToken = default) =>
+        context.Terms.AnyAsync(t => t.AcademicYearId == academicYearId && t.TermNumber == termNumber && t.Id != excludeId, cancellationToken);
+
+    public Task<bool> ExistsByNameAsync(int academicYearId, string termName, int? excludeId = null, CancellationToken cancellationToken = default) =>
+        context.Terms.AnyAsync(t => t.AcademicYearId == academicYearId && t.TermName == termName && t.Id != excludeId, cancellationToken);
 
     public Task<TermEntity?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
         context.Terms.FirstOrDefaultAsync(t => t.Id == id, cancellationToken);

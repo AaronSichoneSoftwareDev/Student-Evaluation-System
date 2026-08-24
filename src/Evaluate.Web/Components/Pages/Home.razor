@@ -26,22 +26,13 @@ else
 
         <div class="row row-charts">
             <DonutChartCard Data="_model.PerformanceDonut" />
-            <CategoryChartCard Data="_model.ScoreTrend" ChartType="area" />
-            <CategoryChartCard Data="_model.AssessmentsOverview" ChartType="bar" />
+            <CategoryChartCard Data="_model.OutcomesTrend" ChartType="area" />
+            <CategoryChartCard Data="_model.BacklogAndRiskOverview" ChartType="bar" />
         </div>
 
         <div class="row row-feed">
-            <InboxCard Messages="_model.Inbox" />
-            <ActivityFeedCard Items="_model.ActivityFeed" />
-            <div style="display:flex;flex-direction:column;gap:20px;">
-                <QuoteCard Quote="_model.Quote" />
-                <YearlyEvaluationsCard Data="_model.YearlyEvaluations" />
-            </div>
-        </div>
-
-        <div class="row row-tables">
             <EvaluationsTable Rows="_model.LatestEvaluations" />
-            <SubmissionsTable Rows="_model.LatestSubmissions" />
+            <ActivityFeedCard Items="_model.ActivityFeed" />
         </div>
     </div>
 }

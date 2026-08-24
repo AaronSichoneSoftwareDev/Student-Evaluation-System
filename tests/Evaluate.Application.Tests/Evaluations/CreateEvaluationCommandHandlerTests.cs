@@ -90,6 +90,24 @@ public class CreateEvaluationCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WithRemovedTopic_ReturnsFailure()
+    {
+        var (context, student, course, algebra, fractions) = await SeedAsync();
+        fractions.Deactivate();
+        await context.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateEvaluationCommandHandler(
+            RepositoryFactory.Evaluations(context), RepositoryFactory.Students(context), RepositoryFactory.Topics(context), new AverageGradingStrategy(), context);
+        var command = new CreateEvaluationCommand(
+            student.Id, "teacher-1", course.Id, 1, 1, new DateOnly(2026, 3, 20),
+            [new TopicScoreInput(algebra.Id, 80, null), new TopicScoreInput(fractions.Id, 70, null)]);
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+    }
+
+    [Fact]
     public async Task Handle_WhenStudentAlreadyEvaluatedForCourseAndTerm_ReturnsFailure()
     {
         var (context, student, course, algebra, fractions) = await SeedAsync();

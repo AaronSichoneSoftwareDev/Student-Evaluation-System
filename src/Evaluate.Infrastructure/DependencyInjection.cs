@@ -39,8 +39,6 @@ public static class DependencyInjection
         services.AddScoped<IEvaluationRepository, EvaluationRepository>();
         services.AddScoped<ISubmissionRepository, SubmissionRepository>();
         services.AddScoped<IActivityFeedRepository, ActivityFeedRepository>();
-        services.AddScoped<IInboxRepository, InboxRepository>();
-        services.AddScoped<IInstructorRepository, InstructorRepository>();
 
         // Real domain repositories, one per aggregate. Fully qualified because the dashboard's
         // mock repositories above already claim the bare names IStudentRepository/StudentRepository

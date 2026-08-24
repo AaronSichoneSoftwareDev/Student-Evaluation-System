@@ -17,10 +17,16 @@ public class CreateTermCommandHandler(ITermRepository terms, IAcademicYearReposi
             throw new NotFoundException(nameof(Domain.Entities.Academic.AcademicYear), request.AcademicYearId);
         }
 
-        var duplicateNumber = await terms.ExistsAsync(request.AcademicYearId, request.TermNumber, cancellationToken);
+        var duplicateNumber = await terms.ExistsAsync(request.AcademicYearId, request.TermNumber, cancellationToken: cancellationToken);
         if (duplicateNumber)
         {
             return Result<int>.Failure($"Term {request.TermNumber} already exists for this academic year.");
+        }
+
+        var duplicateName = await terms.ExistsByNameAsync(request.AcademicYearId, request.TermName, cancellationToken: cancellationToken);
+        if (duplicateName)
+        {
+            return Result<int>.Failure($"A term named '{request.TermName}' already exists for this academic year.");
         }
 
         var term = TermEntity.Create(request.AcademicYearId, request.TermName, request.TermNumber, request.StartDate, request.EndDate);

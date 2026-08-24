@@ -8,6 +8,7 @@
                 <tr>
                     <th>Student</th>
                     <th>Status</th>
+                    <th>Flag</th>
                     <th>Score</th>
                     <th>Date</th>
                     <th></th>
@@ -24,6 +25,16 @@
                             </div>
                         </td>
                         <td><span class="status-dot status-@row.StatusColor">@row.StatusText</span></td>
+                        <td>
+                            @if (row.FlagText is not null)
+                            {
+                                <span class="status-dot status-@row.FlagColor">@row.FlagText</span>
+                            }
+                            else
+                            {
+                                <span class="row-person-sub">—</span>
+                            }
+                        </td>
                         <td>@row.Score</td>
                         <td>@row.Date</td>
                         <td><button type="button" class="btn-edit">Edit</button></td>

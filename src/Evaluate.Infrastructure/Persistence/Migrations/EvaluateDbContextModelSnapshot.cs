@@ -331,59 +331,6 @@ namespace Evaluate.Infrastructure.Persistence.Migrations
                     b.ToTable("Evaluations");
                 });
 
-            modelBuilder.Entity("Evaluate.Domain.Entities.Dashboard.InboxMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Initials")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Preview")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SenderName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<TimeOnly>("Time")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("InboxMessages");
-                });
-
-            modelBuilder.Entity("Evaluate.Domain.Entities.Dashboard.Instructor", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Initials")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Quote")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Instructors");
-                });
-
             modelBuilder.Entity("Evaluate.Domain.Entities.Dashboard.Student", b =>
                 {
                     b.Property<int>("Id")
@@ -681,7 +628,7 @@ namespace Evaluate.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AcademicYearId");
+                    b.HasIndex("AcademicYearId", "Status");
 
                     b.HasIndex("ClassId", "AcademicYearId", "Status");
 

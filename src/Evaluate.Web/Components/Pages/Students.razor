@@ -89,6 +89,7 @@ else
                          Title="Active Students"
                          SearchPredicate="@((s, q) => s.FullName.Contains(q, StringComparison.OrdinalIgnoreCase) || s.StudentNumber.Contains(q, StringComparison.OrdinalIgnoreCase) || s.ClassName.Contains(q, StringComparison.OrdinalIgnoreCase))"
                          SearchPlaceholder="Search students..."
+                         InitialSearchTerm="@SearchQuery"
                          Sort="SortItems">
             <ChildContent Context="items">
                 <div class="table-scroll">
@@ -156,6 +157,10 @@ else
 }
 
 @code {
+    [SupplyParameterFromQuery(Name = "search")]
+    [Parameter]
+    public string? SearchQuery { get; set; }
+
     private List<ActiveStudentDto>? _students;
     private List<ClassDto>? _classes;
 

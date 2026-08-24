@@ -32,20 +32,6 @@ public static class DbSeeder
         };
         context.Students.AddRange(students);
 
-        var instructors = new List<Instructor>
-        {
-            new()
-            {
-                Name = "Dr. Marie Whitfield",
-                Title = "Head of Assessment",
-                Initials = "MW",
-                Quote = "The purpose of evaluation is not to rank students but to reveal how they think, so we can teach them better."
-            },
-            new() { Name = "Prof. Daniel Osei", Title = "Mathematics Faculty", Initials = "DO", Quote = string.Empty },
-            new() { Name = "Ms. Priya Anand", Title = "Science Faculty", Initials = "PA", Quote = string.Empty },
-        };
-        context.Instructors.AddRange(instructors);
-
         await context.SaveChangesAsync(cancellationToken);
 
         var rng = new Random(42);
@@ -108,15 +94,6 @@ public static class DbSeeder
             new ActivityFeedItem { Date = today.AddDays(-3), Title = "Joined Peer Review Committee", Description = "Onboarded as a reviewer for the end-of-term peer assessments." },
             new ActivityFeedItem { Date = today.AddDays(-5), Title = "Completed rubric", Description = "Finalized grading rubric for the Group Project evaluation." },
             new ActivityFeedItem { Date = today.AddDays(-7), Title = "Published progress report", Description = "Quarterly progress report shared with parents and guardians." }
-        );
-
-        context.InboxMessages.AddRange(
-            new InboxMessage { SenderName = "Priya Anand", Initials = "PA", Preview = "Hey! The lab scores are ready for review.", Time = new TimeOnly(13, 40) },
-            new InboxMessage { SenderName = "Daniel Osei", Initials = "DO", Preview = "I've finished grading! See you soon.", Time = new TimeOnly(12, 34) },
-            new InboxMessage { SenderName = "Marie Whitfield", Initials = "MW", Preview = "This rubric update looks great.", Time = new TimeOnly(11, 17) },
-            new InboxMessage { SenderName = "Grace Fuller", Initials = "GF", Preview = "Nice to meet you at the review meeting.", Time = new TimeOnly(10, 20) },
-            new InboxMessage { SenderName = "Victor Adams", Initials = "VA", Preview = "Hey! There's an available slot tomorrow.", Time = new TimeOnly(9, 47) },
-            new InboxMessage { SenderName = "Rachel Cho", Initials = "RC", Preview = "Hey! There's feedback pending on your desk.", Time = new TimeOnly(9, 2) }
         );
 
         await context.SaveChangesAsync(cancellationToken);
